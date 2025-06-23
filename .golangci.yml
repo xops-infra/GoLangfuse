@@ -1,0 +1,63 @@
+version: "2"
+output:
+  formats:
+    text:
+      path: stdout
+      print-linter-name: true
+
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - copyloopvar
+    - dogsled
+    - dupl
+    - errcheck
+    - errorlint
+    - gocheckcompilerdirectives
+    - goconst
+    - gocritic
+    - gocyclo
+    - godox
+    - goprintffuncname
+    - gosec
+    - ineffassign
+    - intrange
+    - lll
+    - misspell
+    - mnd
+    - nakedret
+    - noctx
+    - nolintlint
+    - revive
+    - staticcheck
+    - testifylint
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+  settings:
+    lll:
+      line-length: 140
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
