@@ -2,6 +2,7 @@ package langfuse_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -45,4 +46,36 @@ func Test_AddEvent_ShouldCallClientToSendEvents(t *testing.T) {
 	assert.Contains(t, string(body), `"type":"trace-create"`)
 	assert.Contains(t, string(body), `"name":"LLM"`)
 	assert.Contains(t, string(body), `"public":false`)
+}
+
+func Test_AddEvent_ShouldGenerateIDIfMissing(t *testing.T) {
+	cfg := &config.Langfuse{
+		URL:                    "http://localhost:3000",
+		PublicKey:              "test-public-key",
+		SecretKey:              "test-secret-key",
+		NumberOfEventProcessor: 5,
+	}
+
+	subject := langfuse.New(cfg)
+
+	var sessionID = uuid.New()
+	for i := 0; i < 10; i++ {
+		if i%3 == 0 {
+			sessionID = uuid.New()
+		}
+		id := subject.AddEvent(context.TODO(), &types.TraceEvent{
+			Name:      "LLM",
+			SessionID: sessionID.String(),
+			Input:     fmt.Sprintf("Input %d", i),
+			Output:    fmt.Sprintf("Output %d", i),
+			Metadata: map[string]any{
+				"key": fmt.Sprintf("value-%d", i),
+			},
+			Tags:   []string{fmt.Sprintf("tag-%d", i)},
+			Public: true,
+		})
+		println(fmt.Sprintf("Event ID: %s, Session ID: %s", id.String(), sessionID.String()))
+	}
+
+	time.Sleep(time.Second * 50)
 }

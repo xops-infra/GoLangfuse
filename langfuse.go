@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/bdpiprava/GoLangfuse/config"
 	"github.com/bdpiprava/GoLangfuse/logger"
@@ -53,6 +54,10 @@ func (l *langfuseService) AddEvent(ctx context.Context, event types.LangfuseEven
 
 // startEventProcessors start the background event processors
 func (l *langfuseService) startEventProcessors(count int) {
+	if count <= 0 {
+		logrus.New().Warn("Langfuse event processor count is less than or equal to zero, no processors will be started")
+	}
+
 	for i := 0; i < count; i++ {
 		go func() {
 			for item := range l.eventChannel {

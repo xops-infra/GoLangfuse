@@ -30,4 +30,24 @@ jobs:
       - name: Install dependencies
         run: go get . && go install gotest.tools/gotestsum@latest
       - name: Run unit tests
-        run: gotestsum --format testname
+        run: make test-unit
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install dependencies
+        run: go get . && go install gotest.tools/gotestsum@latest
+
+      - name: Start containers
+        run: docker compose -f ./docker-compose.yml up -d
+
+      - name: Run tests
+        run: make test-integration

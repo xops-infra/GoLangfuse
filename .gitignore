@@ -1,3 +1,5 @@
 .idea
 .claude
 vendor
+coverage_integration.txt
+coverage_unit.txt

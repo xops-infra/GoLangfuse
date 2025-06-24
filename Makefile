@@ -1,9 +1,21 @@
 .PHONY: tests
 
+test-deps:
+	@go install gotest.tools/gotestsum@v1.12.1
+
 # To run unit tests
 tests:
-	@echo "Running tests"
-	go test -count=1 -race ./...
+	@echo "Running all tests"
+	@make test-unit
+	@make test-integration
+
+test-unit: test-deps
+	@echo "Running unit tests"
+	@gotestsum --format=testname -- -v -coverprofile=coverage_unit.txt -race -cover -covermode=atomic ./... -short
+
+test-integration: test-deps
+	@echo "Running integration tests"
+	@gotestsum --format testname -- -v -coverprofile=coverage_integration.txt -race -cover -covermode=atomic -coverpkg=./pkg/... -run "^*.IntegrationTestSuite$$" ./...
 
 build:
 	@echo "Building the application"
