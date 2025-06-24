@@ -13,6 +13,9 @@ import (
 	"github.com/bdpiprava/GoLangfuse/types"
 )
 
+// maxParallelItem is the maximum number of items that can be processed in parallel.
+const maxParallelItem = 512
+
 // Langfuse an interface to send ingestion events to langfuse in async manner
 // Event is added to the queue and then processor is sending it to the langfuse
 type Langfuse interface {
@@ -36,10 +39,10 @@ func New(config *config.Langfuse) Langfuse {
 }
 
 // NewWithClient initialise new Langfuse instance with background event processors
-func NewWithClient(config *config.Langfuse, customHttpClient *http.Client) Langfuse {
+func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langfuse {
 	eventManager := &langfuseService{
-		client:       NewClient(config, customHttpClient),
-		eventChannel: make(chan eventChanItem, 512),
+		client:       NewClient(config, customHTTPClient),
+		eventChannel: make(chan eventChanItem, maxParallelItem),
 	}
 	eventManager.startEventProcessors(config.NumberOfEventProcessor)
 	return eventManager
@@ -58,7 +61,7 @@ func (l *langfuseService) startEventProcessors(count int) {
 		logrus.New().Warn("Langfuse event processor count is less than or equal to zero, no processors will be started")
 	}
 
-	for i := 0; i < count; i++ {
+	for range count {
 		go func() {
 			for item := range l.eventChannel {
 				l.send(item.ctx, item.event)

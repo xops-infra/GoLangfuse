@@ -112,7 +112,6 @@ func Test_Send_ValidateStruct(t *testing.T) {
 }
 
 func Test_Send_WithInvalidLangfuseURL_Fails(t *testing.T) {
-
 	testCases := []struct {
 		name         string
 		config       *config.Langfuse
@@ -187,7 +186,7 @@ func Test_Send_WithResponse(t *testing.T) {
 			responseError: nil,
 			response:      &http.Response{Body: io.NopCloser(strings.NewReader("{}"))},
 			expectations: func(t *testing.T, err error) {
-				assert.Nil(t, err)
+				assert.NoError(t, err)
 			},
 		},
 	}

@@ -16,7 +16,13 @@ const (
 	Images       UsageUnit = "IMAGES"
 )
 
-// Usage represents token usage for language model interactions
+// Usage represents token and cost usage for language model interactions in Langfuse.
+// It tracks input, output, and total usage, as well as associated costs and token breakdowns.
+// Fields:
+//   - Input, Output, Total: Quantities measured in the specified unit (characters, tokens, etc.).
+//   - Unit: The unit of measurement (see UsageUnit).
+//   - InputCost, OutputCost, TotalCost: Cost values for input, output, and total usage.
+//   - PromptTokens, CompletionTokens, TotalTokens: Token counts for prompt, completion, and total (for LLMs).
 type Usage struct {
 	Input            int       `json:"input,omitempty"`
 	Output           int       `json:"output,omitempty"`

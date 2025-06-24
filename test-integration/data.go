@@ -1,4 +1,5 @@
-package test_integration
+// Package integration_test provides utilities for creating test data structures
+package integration_test
 
 import (
 	"time"

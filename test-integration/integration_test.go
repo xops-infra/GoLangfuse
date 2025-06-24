@@ -1,4 +1,4 @@
-package test_integration
+package integration_test
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/joho/godotenv"
 	"github.com/kelseyhightower/envconfig"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
 	langfuse "github.com/bdpiprava/GoLangfuse"
@@ -34,10 +33,10 @@ func TestIntegrationTestSuite(t *testing.T) {
 
 func (s *LangfuseIntegrationTestSuite) SetupSuite() {
 	err := godotenv.Load(".integration.env")
-	s.NoError(err, "Failed to load .integration.env file")
+	s.Require().NoError(err, "Failed to load .integration.env file")
 
 	s.cfg, err = loadEnv()
-	s.NoError(err, "Failed to load configuration from environment variables")
+	s.Require().NoError(err, "Failed to load configuration from environment variables")
 
 	s.subject = langfuse.New(s.cfg)
 }
@@ -48,7 +47,7 @@ func (s *LangfuseIntegrationTestSuite) Test_SendTrace() {
 
 	s.subject.AddEvent(context.TODO(), traceEvent)
 
-	assert.Eventually(s.T(), func() bool {
+	s.Eventually(func() bool {
 		tracePath := fmt.Sprintf("/api/public/traces/%s", traceEvent.ID.String())
 		got, err := getEventType[types.TraceEvent](s.cfg, tracePath)
 		if err != nil {
@@ -57,10 +56,9 @@ func (s *LangfuseIntegrationTestSuite) Test_SendTrace() {
 		}
 
 		return s.Equal(traceEvent, got)
-
 	}, 10*time.Second, 100*time.Millisecond, "Trace event should be sent successfully")
 
-	assert.Eventually(s.T(), func() bool {
+	s.Eventually(func() bool {
 		sessionPath := fmt.Sprintf("/api/public/sessions/%s", traceEvent.SessionID)
 		got, err := getEventType[types.Session](s.cfg, sessionPath)
 		if err != nil {
@@ -72,7 +70,6 @@ func (s *LangfuseIntegrationTestSuite) Test_SendTrace() {
 			cmpopts.IgnoreFields(types.Trace{}, "Timestamp", "CreatedAt", "UpdatedAt"),
 			cmpopts.IgnoreFields(types.Session{}, "CreatedAt"),
 		)
-
 	}, 10*time.Second, 100*time.Millisecond, "Trace event should be sent successfully")
 }
 

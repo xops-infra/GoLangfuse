@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -33,12 +34,12 @@ func AddMockTransport(t *testing.T, client *http.Client) Transport {
 				continue
 			}
 
-			if exp.request.URL.String() == request.URL.String() && strings.ToLower(exp.request.Method) == strings.ToLower(request.Method) {
+			if strings.EqualFold(exp.request.URL.String(), request.URL.String()) && strings.EqualFold(exp.request.Method, request.Method) {
 				mockTrans.mutex.Lock()
 				exp.met = true
 				mockTrans.mutex.Unlock()
 
-				if exp.validator == nil || len(exp.validator) == 0 {
+				if len(exp.validator) == 0 {
 					return exp.response, exp.error
 				}
 
@@ -124,7 +125,7 @@ func (m *mockTransport) AllExpectationMet() bool {
 }
 
 func (m *mockTransport) ExpectWith(method, url string) Expectation {
-	request, _ := http.NewRequest(method, url, nil)
+	request, _ := http.NewRequestWithContext(context.TODO(), method, url, nil)
 	return m.expect(request)
 }
 

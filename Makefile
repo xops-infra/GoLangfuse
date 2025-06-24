@@ -1,5 +1,8 @@
 .PHONY: tests
 
+# Packages
+PKG := $(shell go list ./pkg...)
+
 test-deps:
 	@go install gotest.tools/gotestsum@v1.12.1
 
@@ -11,7 +14,7 @@ tests:
 
 test-unit: test-deps
 	@echo "Running unit tests"
-	@gotestsum --format=testname -- -v -coverprofile=coverage_unit.txt -race -cover -covermode=atomic ./... -short
+	@gotestsum --format=testname -- -v -coverprofile=coverage_unit.txt -race -cover -covermode=atomic $(PKG) -short
 
 test-integration: test-deps
 	@echo "Running integration tests"

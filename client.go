@@ -100,7 +100,7 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 		return nil, errors.Wrapf(err, "failed to marshal request payload")
 	}
 
-	httpRequest, err := http.NewRequest(http.MethodPost, apiPath, bytes.NewBuffer(payload))
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, apiPath, bytes.NewBuffer(payload))
 	if err != nil {
 		log.WithError(err).Error("failed to create langfuse request")
 		return nil, errors.Wrapf(err, "failed to create langfuse request")
