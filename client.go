@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
-	"github.com/pkg/errors"
 
 	"github.com/bdpiprava/GoLangfuse/config"
 	"github.com/bdpiprava/GoLangfuse/logger"
@@ -65,18 +63,18 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 	log := logger.FromContext(ctx)
 	if strings.TrimSpace(c.config.URL) == "" {
 		log.Warn("langfuse config is not provided. no action is taken")
-		return fmt.Errorf("missing langfuse config")
+		return ErrMissingURL
 	}
 
 	eventType := getEventType(ingestionEvent)
 	if eventType == "unknown" {
 		log.Errorf("cannot process event of 'unknown' type")
-		return errors.Errorf("cannot process event of 'unknown' type")
+		return ErrUnknownEventType
 	}
 
 	if _, err := govalidator.ValidateStruct(ingestionEvent); err != nil {
 		log.WithError(err).Errorf("ingestion event validation failed")
-		return errors.Wrapf(err, "ingestion event validation failed")
+		return ErrEventValidation.WithCause(err)
 	}
 
 	request := &ingestionRequest{
@@ -96,11 +94,13 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 	}
 
 	if len(resp.Errors) > 0 {
-		log.Errorf("request to langfues returned errors in response %v", resp.Errors)
-		return errors.Errorf("request to langfues returned errors in response %v", resp.Errors)
+		log.Errorf("request to langfuse returned errors in response %v", resp.Errors)
+		return ErrAPIServerError.WithDetails(map[string]any{
+			"api_errors": resp.Errors,
+		})
 	}
 
-	return err
+	return nil
 }
 
 // SendBatch sends multiple events in a single batch to langfuse
@@ -108,7 +108,7 @@ func (c client) SendBatch(ctx context.Context, events []types.LangfuseEvent) err
 	log := logger.FromContext(ctx)
 	if strings.TrimSpace(c.config.URL) == "" {
 		log.Warn("langfuse config is not provided. no action is taken")
-		return fmt.Errorf("missing langfuse config")
+		return ErrMissingURL
 	}
 
 	if len(events) == 0 {
@@ -117,16 +117,20 @@ func (c client) SendBatch(ctx context.Context, events []types.LangfuseEvent) err
 
 	// Validate all events first
 	var batchEvents []event
-	for _, ingestionEvent := range events {
+	for i, ingestionEvent := range events {
 		eventType := getEventType(ingestionEvent)
 		if eventType == "unknown" {
 			log.Errorf("cannot process event of 'unknown' type")
-			return errors.Errorf("cannot process event of 'unknown' type")
+			return ErrUnknownEventType.WithDetails(map[string]any{
+				"event_index": i,
+			})
 		}
 
 		if _, err := govalidator.ValidateStruct(ingestionEvent); err != nil {
 			log.WithError(err).Errorf("ingestion event validation failed")
-			return errors.Wrapf(err, "ingestion event validation failed")
+			return ErrEventValidation.WithCause(err).WithDetails(map[string]any{
+				"event_index": i,
+			})
 		}
 
 		batchEvents = append(batchEvents, event{
@@ -148,7 +152,10 @@ func (c client) SendBatch(ctx context.Context, events []types.LangfuseEvent) err
 
 	if len(resp.Errors) > 0 {
 		log.Errorf("request to langfuse returned errors in response %v", resp.Errors)
-		return errors.Errorf("request to langfuse returned errors in response %v", resp.Errors)
+		return ErrBatchProcessing.WithDetails(map[string]any{
+			"api_errors": resp.Errors,
+			"batch_size": len(events),
+		})
 	}
 
 	return nil
@@ -177,10 +184,12 @@ func (c client) sendEventWithRetry(ctx context.Context, request *ingestionReques
 		lastErr = err
 		log := logger.FromContext(ctx)
 		
-		// Don't retry on client errors (4xx)
-		if httpErr, ok := err.(*HTTPError); ok && httpErr.StatusCode >= 400 && httpErr.StatusCode < 500 {
-			log.WithError(err).Errorf("client error, not retrying: %v", err)
-			break
+		// Don't retry on client errors (4xx) or non-retryable errors
+		if langfuseErr, ok := err.(*LangfuseError); ok {
+			if !langfuseErr.IsRetryable() {
+				log.WithError(err).Errorf("non-retryable error, not retrying: %v", err)
+				break
+			}
 		}
 		
 		if i < c.config.MaxRetries {
@@ -188,17 +197,9 @@ func (c client) sendEventWithRetry(ctx context.Context, request *ingestionReques
 		}
 	}
 	
-	return nil, fmt.Errorf("failed after %d retries: %w", c.config.MaxRetries, lastErr)
-}
-
-// HTTPError represents an HTTP error with status code
-type HTTPError struct {
-	StatusCode int
-	Message    string
-}
-
-func (e *HTTPError) Error() string {
-	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Message)
+	return nil, ErrRequestFailed.WithCause(lastErr).WithDetails(map[string]any{
+		"max_retries": c.config.MaxRetries,
+	})
 }
 
 // sendEvent send and ingestion event to langfuse
@@ -207,13 +208,15 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	apiPath, err := url.JoinPath(c.config.URL, "/api/public/ingestion")
 	if err != nil {
 		log.WithError(err).Errorf("failed to build langfuse url using %s and /api/public/ingestion", c.config.URL)
-		return nil, errors.Wrapf(err, "failed to build langfuse url using %s and /api/public/ingestion", c.config.URL)
+		return nil, ErrInvalidConfig.WithCause(err).WithDetails(map[string]any{
+			"url": c.config.URL,
+		})
 	}
 
 	payload, err := json.Marshal(request)
 	if err != nil {
 		log.WithError(err).Error("failed to marshal request payload")
-		return nil, errors.Wrapf(err, "failed to marshal request payload")
+		return nil, ErrEventProcessing.WithCause(err)
 	}
 
 	// Compress payload if it's large enough
@@ -224,10 +227,14 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 		gzWriter := gzip.NewWriter(&compressedBuf)
 		if _, err := gzWriter.Write(payload); err != nil {
 			gzWriter.Close()
-			return nil, errors.Wrapf(err, "failed to compress payload")
+			return nil, ErrEventProcessing.WithCause(err).WithDetails(map[string]any{
+				"operation": "compression",
+			})
 		}
 		if err := gzWriter.Close(); err != nil {
-			return nil, errors.Wrapf(err, "failed to close gzip writer")
+			return nil, ErrEventProcessing.WithCause(err).WithDetails(map[string]any{
+				"operation": "compression_close",
+			})
 		}
 		body = &compressedBuf
 		contentEncoding = "gzip"
@@ -238,7 +245,7 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, apiPath, body)
 	if err != nil {
 		log.WithError(err).Error("failed to create langfuse request")
-		return nil, errors.Wrapf(err, "failed to create langfuse request")
+		return nil, ErrRequestFailed.WithCause(err)
 	}
 
 	httpRequest.SetBasicAuth(c.config.PublicKey, c.config.SecretKey)
@@ -251,7 +258,7 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	resp, err := c.client.Do(httpRequest)
 	if err != nil {
 		log.WithError(err).Error("request to langfuse failed")
-		return nil, errors.Wrapf(err, "request to langfuse failed")
+		return nil, ErrConnectionFailed.WithCause(err)
 	}
 
 	defer func() {
@@ -261,10 +268,7 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	// Handle HTTP errors
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, &HTTPError{
-			StatusCode: resp.StatusCode,
-			Message:    string(bodyBytes),
-		}
+		return nil, NewHTTPError(resp.StatusCode, string(bodyBytes))
 	}
 
 	// Handle compressed response
@@ -273,7 +277,9 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 		gzReader, err := gzip.NewReader(resp.Body)
 		if err != nil {
 			log.WithError(err).Error("failed to create gzip reader")
-			return nil, errors.Wrapf(err, "failed to create gzip reader")
+			return nil, ErrEventProcessing.WithCause(err).WithDetails(map[string]any{
+				"operation": "decompression",
+			})
 		}
 		defer gzReader.Close()
 		reader = gzReader
@@ -282,14 +288,17 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	bodyBytes, err := io.ReadAll(reader)
 	if err != nil {
 		log.WithError(err).Error("failed to read response")
-		return nil, errors.Wrapf(err, "failed to read response")
+		return nil, ErrNetworkTimeout.WithCause(err)
 	}
 
 	var response ingestionResponse
 	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		log.WithError(err).Error("failed to parse response")
-		return nil, errors.Wrapf(err, "failed to parse response")
+		return nil, ErrEventProcessing.WithCause(err).WithDetails(map[string]any{
+			"operation": "json_unmarshal",
+			"response_body": string(bodyBytes),
+		})
 	}
 	return &response, nil
 }
