@@ -28,8 +28,8 @@ type SpanEvent struct {
 	TraceID             *uuid.UUID     `json:"traceId"`
 	ParentObservationID *uuid.UUID     `json:"parentObservationId,omitempty"`
 	Name                string         `json:"name"`
-	StartTime           time.Time      `json:"startTime,omitempty"`
-	EndTime             time.Time      `json:"endTime,omitempty"`
+	StartTime           *time.Time     `json:"startTime,omitempty"`
+	EndTime             *time.Time     `json:"endTime,omitempty"`
 	Metadata            map[string]any `json:"metadata,omitempty"`
 	Level               Level          `json:"level,omitempty"`
 	StatusMessage       string         `json:"statusMessage,omitempty"`
@@ -58,6 +58,14 @@ func (t *SpanEvent) Error(statusMessage string) *SpanEvent {
 
 // End set end time to now
 func (t *SpanEvent) End() *SpanEvent {
-	t.EndTime = time.Now().UTC()
+	now := time.Now().UTC()
+	t.EndTime = &now
+	return t
+}
+
+// Start set start time to now
+func (t *SpanEvent) Start() *SpanEvent {
+	now := time.Now().UTC()
+	t.StartTime = &now
 	return t
 }
