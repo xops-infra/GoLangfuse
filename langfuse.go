@@ -35,11 +35,22 @@ type langfuseService struct {
 
 // New initialise new Langfuse instance for given config with background event processors
 func New(config *config.Langfuse) Langfuse {
-	return NewWithClient(config, http.DefaultClient)
+	if err := config.Validate(); err != nil {
+		logger := logger.FromContext(context.Background())
+		logger.Fatalf("invalid langfuse configuration: %v", err)
+	}
+	
+	optimizedClient := NewOptimizedHTTPClient(config)
+	return NewWithClient(config, optimizedClient)
 }
 
 // NewWithClient initialise new Langfuse instance with background event processors
 func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langfuse {
+	if err := config.Validate(); err != nil {
+		logger := logger.FromContext(context.Background())
+		logger.Fatalf("invalid langfuse configuration: %v", err)
+	}
+	
 	eventManager := &langfuseService{
 		client:       NewClient(config, customHTTPClient),
 		eventChannel: make(chan eventChanItem, maxParallelItem),

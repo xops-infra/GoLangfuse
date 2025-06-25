@@ -3,10 +3,12 @@ package langfuse
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -29,6 +31,20 @@ type Client interface {
 type client struct {
 	client *http.Client
 	config *config.Langfuse
+}
+
+// NewOptimizedHTTPClient creates an HTTP client optimized for Langfuse API calls
+func NewOptimizedHTTPClient(cfg *config.Langfuse) *http.Client {
+	return &http.Client{
+		Timeout: cfg.Timeout,
+		Transport: &http.Transport{
+			MaxIdleConns:        cfg.MaxIdleConns,
+			MaxIdleConnsPerHost: cfg.MaxIdleConnsPerHost,
+			IdleConnTimeout:     cfg.IdleConnTimeout,
+			DisableKeepAlives:   false,
+			DisableCompression:  false,
+		},
+	}
 }
 
 // NewClient initialise new langfuse api client
@@ -72,7 +88,7 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 		},
 	}
 
-	resp, err := c.sendEvent(ctx, request)
+	resp, err := c.sendEventWithRetry(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -83,6 +99,53 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 	}
 
 	return err
+}
+
+// sendEventWithRetry sends an ingestion event to langfuse with retry logic
+func (c client) sendEventWithRetry(ctx context.Context, request *ingestionRequest) (*ingestionResponse, error) {
+	var lastErr error
+	
+	for i := 0; i <= c.config.MaxRetries; i++ {
+		if i > 0 {
+			// Calculate exponential backoff delay
+			delay := time.Duration(math.Pow(2, float64(i-1))) * c.config.RetryDelay
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+		
+		resp, err := c.sendEvent(ctx, request)
+		if err == nil {
+			return resp, nil
+		}
+		
+		lastErr = err
+		log := logger.FromContext(ctx)
+		
+		// Don't retry on client errors (4xx)
+		if httpErr, ok := err.(*HTTPError); ok && httpErr.StatusCode >= 400 && httpErr.StatusCode < 500 {
+			log.WithError(err).Errorf("client error, not retrying: %v", err)
+			break
+		}
+		
+		if i < c.config.MaxRetries {
+			log.WithError(err).Warnf("request failed, retrying (attempt %d/%d)", i+1, c.config.MaxRetries)
+		}
+	}
+	
+	return nil, fmt.Errorf("failed after %d retries: %w", c.config.MaxRetries, lastErr)
+}
+
+// HTTPError represents an HTTP error with status code
+type HTTPError struct {
+	StatusCode int
+	Message    string
+}
+
+func (e *HTTPError) Error() string {
+	return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Message)
 }
 
 // sendEvent send and ingestion event to langfuse
@@ -100,7 +163,26 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 		return nil, errors.Wrapf(err, "failed to marshal request payload")
 	}
 
-	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, apiPath, bytes.NewBuffer(payload))
+	// Compress payload if it's large enough
+	var body io.Reader
+	var contentEncoding string
+	if len(payload) > 1024 { // Compress if payload > 1KB
+		var compressedBuf bytes.Buffer
+		gzWriter := gzip.NewWriter(&compressedBuf)
+		if _, err := gzWriter.Write(payload); err != nil {
+			gzWriter.Close()
+			return nil, errors.Wrapf(err, "failed to compress payload")
+		}
+		if err := gzWriter.Close(); err != nil {
+			return nil, errors.Wrapf(err, "failed to close gzip writer")
+		}
+		body = &compressedBuf
+		contentEncoding = "gzip"
+	} else {
+		body = bytes.NewBuffer(payload)
+	}
+
+	httpRequest, err := http.NewRequestWithContext(ctx, http.MethodPost, apiPath, body)
 	if err != nil {
 		log.WithError(err).Error("failed to create langfuse request")
 		return nil, errors.Wrapf(err, "failed to create langfuse request")
@@ -108,6 +190,10 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 
 	httpRequest.SetBasicAuth(c.config.PublicKey, c.config.SecretKey)
 	httpRequest.Header.Set("Content-Type", "application/json")
+	httpRequest.Header.Set("Accept-Encoding", "gzip")
+	if contentEncoding != "" {
+		httpRequest.Header.Set("Content-Encoding", contentEncoding)
+	}
 
 	resp, err := c.client.Do(httpRequest)
 	if err != nil {
@@ -119,14 +205,35 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 		_ = resp.Body.Close()
 	}()
 
-	body, err := io.ReadAll(resp.Body)
+	// Handle HTTP errors
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, &HTTPError{
+			StatusCode: resp.StatusCode,
+			Message:    string(bodyBytes),
+		}
+	}
+
+	// Handle compressed response
+	var reader io.Reader = resp.Body
+	if resp.Header.Get("Content-Encoding") == "gzip" {
+		gzReader, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			log.WithError(err).Error("failed to create gzip reader")
+			return nil, errors.Wrapf(err, "failed to create gzip reader")
+		}
+		defer gzReader.Close()
+		reader = gzReader
+	}
+
+	bodyBytes, err := io.ReadAll(reader)
 	if err != nil {
 		log.WithError(err).Error("failed to read response")
 		return nil, errors.Wrapf(err, "failed to read response")
 	}
 
 	var response ingestionResponse
-	err = json.Unmarshal(body, &response)
+	err = json.Unmarshal(bodyBytes, &response)
 	if err != nil {
 		log.WithError(err).Error("failed to parse response")
 		return nil, errors.Wrapf(err, "failed to parse response")
