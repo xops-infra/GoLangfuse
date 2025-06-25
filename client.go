@@ -26,6 +26,8 @@ import (
 type Client interface {
 	// Send sends ingestion event to langfuse using rest API
 	Send(ctx context.Context, event types.LangfuseEvent) error
+	// SendBatch sends multiple events in a single batch to langfuse
+	SendBatch(ctx context.Context, events []types.LangfuseEvent) error
 }
 
 type client struct {
@@ -99,6 +101,57 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 	}
 
 	return err
+}
+
+// SendBatch sends multiple events in a single batch to langfuse
+func (c client) SendBatch(ctx context.Context, events []types.LangfuseEvent) error {
+	log := logger.FromContext(ctx)
+	if strings.TrimSpace(c.config.URL) == "" {
+		log.Warn("langfuse config is not provided. no action is taken")
+		return fmt.Errorf("missing langfuse config")
+	}
+
+	if len(events) == 0 {
+		return nil // Nothing to send
+	}
+
+	// Validate all events first
+	var batchEvents []event
+	for _, ingestionEvent := range events {
+		eventType := getEventType(ingestionEvent)
+		if eventType == "unknown" {
+			log.Errorf("cannot process event of 'unknown' type")
+			return errors.Errorf("cannot process event of 'unknown' type")
+		}
+
+		if _, err := govalidator.ValidateStruct(ingestionEvent); err != nil {
+			log.WithError(err).Errorf("ingestion event validation failed")
+			return errors.Wrapf(err, "ingestion event validation failed")
+		}
+
+		batchEvents = append(batchEvents, event{
+			ID:        ingestionEvent.GetID().String(),
+			Body:      ingestionEvent,
+			Type:      eventType,
+			Timestamp: time.Now(),
+		})
+	}
+
+	request := &ingestionRequest{
+		Batch: batchEvents,
+	}
+
+	resp, err := c.sendEventWithRetry(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	if len(resp.Errors) > 0 {
+		log.Errorf("request to langfuse returned errors in response %v", resp.Errors)
+		return errors.Errorf("request to langfuse returned errors in response %v", resp.Errors)
+	}
+
+	return nil
 }
 
 // sendEventWithRetry sends an ingestion event to langfuse with retry logic
