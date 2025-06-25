@@ -25,6 +25,12 @@ type Langfuse interface {
 	AddEvent(ctx context.Context, event types.LangfuseEvent) *uuid.UUID
 	// Stop gracefully shuts down the service and flushes remaining events
 	Stop(ctx context.Context) error
+	// GetMetrics returns current performance metrics
+	GetMetrics() Metrics
+	// GetHealthStatus returns current health status
+	GetHealthStatus() HealthStatus
+	// CheckHealth performs health checks and returns status
+	CheckHealth(ctx context.Context) HealthStatus
 }
 
 type eventChanItem struct {
@@ -33,11 +39,12 @@ type eventChanItem struct {
 }
 
 type langfuseService struct {
-	client       Client
-	config       *config.Langfuse
-	eventChannel chan eventChanItem
-	stopChannel  chan struct{}
-	wg           sync.WaitGroup
+	client           Client
+	config           *config.Langfuse
+	eventChannel     chan eventChanItem
+	stopChannel      chan struct{}
+	wg               sync.WaitGroup
+	metricsCollector *MetricsCollector
 }
 
 // New initialise new Langfuse instance for given config with background event processors
@@ -58,12 +65,20 @@ func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langf
 		logger.Fatalf("invalid langfuse configuration: %v", err)
 	}
 	
+	metricsCollector := NewMetricsCollector()
+	
 	eventManager := &langfuseService{
-		client:       NewClient(config, customHTTPClient),
-		config:       config,
-		eventChannel: make(chan eventChanItem, maxParallelItem),
-		stopChannel:  make(chan struct{}),
+		client:           NewClient(config, customHTTPClient),
+		config:           config,
+		eventChannel:     make(chan eventChanItem, maxParallelItem),
+		stopChannel:      make(chan struct{}),
+		metricsCollector: metricsCollector,
 	}
+	
+	// Initialize metrics
+	metricsCollector.UpdateQueueMetrics(0, maxParallelItem)
+	metricsCollector.UpdateActiveProcessors(int32(config.NumberOfEventProcessor))
+	
 	eventManager.startBatchProcessors(config.NumberOfEventProcessor)
 	return eventManager
 }
@@ -72,6 +87,8 @@ func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langf
 func (l *langfuseService) AddEvent(ctx context.Context, event types.LangfuseEvent) *uuid.UUID {
 	ensureEventID(event)
 	l.eventChannel <- eventChanItem{ctx: ctx, event: event}
+	l.metricsCollector.IncrementEventsQueued()
+	l.metricsCollector.UpdateQueueMetrics(len(l.eventChannel), maxParallelItem)
 	return event.GetID()
 }
 
@@ -130,6 +147,9 @@ func (l *langfuseService) processBatches(processorID int) {
 			}
 
 			batch = append(batch, item)
+			
+			// Update queue metrics
+			l.metricsCollector.UpdateQueueMetrics(len(l.eventChannel), maxParallelItem)
 
 			// Flush batch if it reaches the configured size
 			if len(batch) >= l.config.BatchSize {
@@ -154,14 +174,33 @@ func (l *langfuseService) sendBatch(ctx context.Context, events []types.Langfuse
 	log := logger.FromContext(ctx)
 	log.Debugf("sending batch of %d events to langfuse", len(events))
 
+	startTime := time.Now()
 	err := l.client.SendBatch(ctx, events)
+	responseTime := time.Since(startTime)
+
 	if err != nil {
 		log.WithError(err).Errorf("failed to send batch of %d events", len(events))
+		l.metricsCollector.IncrementBatchesFailed(err)
+		l.metricsCollector.RecordHTTPRequest(false, responseTime)
+		
 		// Fall back to individual sends on batch failure
 		for _, event := range events {
+			individualStart := time.Now()
 			if sendErr := l.client.Send(ctx, event); sendErr != nil {
 				log.WithError(sendErr).Errorf("failed to send individual event %v", event)
+				l.metricsCollector.IncrementEventsFailed(sendErr)
+				l.metricsCollector.RecordHTTPRequest(false, time.Since(individualStart))
+			} else {
+				l.metricsCollector.IncrementEventsProcessed()
+				l.metricsCollector.RecordHTTPRequest(true, time.Since(individualStart))
 			}
+		}
+	} else {
+		l.metricsCollector.IncrementBatchesProcessed()
+		l.metricsCollector.RecordHTTPRequest(true, responseTime)
+		// Update processed events count
+		for range events {
+			l.metricsCollector.IncrementEventsProcessed()
 		}
 	}
 }
@@ -192,6 +231,21 @@ func (l *langfuseService) Stop(ctx context.Context) error {
 		log.Warn("Langfuse service stop timed out")
 		return ctx.Err()
 	}
+}
+
+// GetMetrics returns current performance metrics
+func (l *langfuseService) GetMetrics() Metrics {
+	return l.metricsCollector.GetMetrics()
+}
+
+// GetHealthStatus returns current health status
+func (l *langfuseService) GetHealthStatus() HealthStatus {
+	return l.metricsCollector.GetHealthStatus()
+}
+
+// CheckHealth performs health checks and returns status
+func (l *langfuseService) CheckHealth(ctx context.Context) HealthStatus {
+	return l.metricsCollector.CheckHealth(ctx)
 }
 
 // ensureEventID ensures that the IngestionEvent has a unique ID, generating one if missing.
