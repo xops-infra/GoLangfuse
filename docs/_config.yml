@@ -1,0 +1,50 @@
+# GitHub Pages Configuration
+theme: jekyll-theme-minimal
+title: "GoLangfuse"
+description: "Production-ready Go client library for Langfuse API"
+url: "https://bdpiprava.github.io"
+baseurl: "/GoLangfuse"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Exclude files from processing
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor
+  - .bundle
+  - .sass-cache
+  - .jekyll-cache
+  - .jekyll-metadata
+
+# Include files
+include:
+  - _pages
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# SEO
+author: "Bhupendra Kumar Piprava"
+twitter:
+  username: bdpiprava
+  card: summary_large_image
+
+# Social media
+github_username: bdpiprava
+
+# Analytics (optional - replace with your ID)
+# google_analytics: UA-XXXXXXXX-X
+
+# Repository information
+repository: "bdpiprava/GoLangfuse"

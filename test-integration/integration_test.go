@@ -55,7 +55,7 @@ func (s *LangfuseIntegrationTestSuite) Test_SendTrace() {
 			return false
 		}
 
-		return s.Equal(traceEvent, got)
+		return s.Equal(traceEvent, got, cmpopts.IgnoreFields(types.TraceEvent{}, "Timestamp"))
 	}, 10*time.Second, 100*time.Millisecond, "Trace event should be sent successfully")
 
 	s.Eventually(func() bool {

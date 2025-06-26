@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoLangfuse - Go Client Library for Langfuse</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="nav">
+                <div class="logo">
+                    <h1>GoLangfuse</h1>
+                    <span class="version">v1.0.0</span>
+                </div>
+                <nav class="nav-links">
+                    <a href="#quick-start">Quick Start</a>
+                    <a href="#api-reference">API Reference</a>
+                    <a href="#examples">Examples</a>
+                    <a href="#configuration">Configuration</a>
+                    <a href="https://github.com/bdpiprava/GoLangfuse" target="_blank">GitHub</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1>Production-Ready Go Client for Langfuse</h1>
+                    <p class="hero-subtitle">
+                        Comprehensive LLM observability with enterprise-grade reliability, 
+                        asynchronous processing, and minimal performance overhead.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#quick-start" class="btn btn-primary">Get Started</a>
+                        <a href="https://github.com/bdpiprava/GoLangfuse" class="btn btn-secondary" target="_blank">View on GitHub</a>
+                    </div>
+                </div>
+                <div class="hero-code">
+                    <pre><code class="language-go">package main
+
+import (
+    "context"
+    "github.com/bdpiprava/GoLangfuse"
+    "github.com/bdpiprava/GoLangfuse/config"
+)
+
+func main() {
+    // Initialize from environment variables
+    lf, err := langfuse.NewFromEnv()
+    if err != nil {
+        panic(err)
+    }
+    defer lf.Shutdown(context.Background())
+
+    // Track LLM interactions
+    traceID := lf.AddEvent(ctx, &types.TraceEvent{
+        Name: "chat-completion",
+        UserID: "user-123",
+        Metadata: map[string]interface{}{
+            "model": "gpt-4",
+        },
+    })
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="container">
+                <h2>Key Features</h2>
+                <div class="features-grid">
+                    <div class="feature">
+                        <div class="feature-icon">⚡</div>
+                        <h3>Asynchronous Processing</h3>
+                        <p>Non-blocking event tracking with configurable worker goroutines and intelligent batching.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🔄</div>
+                        <h3>Retry Logic</h3>
+                        <p>Built-in exponential backoff retry mechanism with configurable maximum attempts.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">📊</div>
+                        <h3>Comprehensive Monitoring</h3>
+                        <p>Health checks, metrics collection, and performance tracking out of the box.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🛡️</div>
+                        <h3>Production Ready</h3>
+                        <p>Enterprise-grade reliability with structured error handling and graceful shutdown.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">🎯</div>
+                        <h3>Type Safe</h3>
+                        <p>Strongly typed event system with builder patterns for clean, maintainable code.</p>
+                    </div>
+                    <div class="feature">
+                        <div class="feature-icon">⚙️</div>
+                        <h3>Configurable</h3>
+                        <p>Extensive configuration options with sensible defaults and environment variable support.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-start" class="section">
+            <div class="container">
+                <h2>Quick Start</h2>
+                
+                <div class="step">
+                    <h3>1. Installation</h3>
+                    <pre><code class="language-bash">go get github.com/bdpiprava/GoLangfuse</code></pre>
+                </div>
+
+                <div class="step">
+                    <h3>2. Environment Setup</h3>
+                    <p>Set your Langfuse credentials:</p>
+                    <pre><code class="language-bash">export LANGFUSE_URL="https://cloud.langfuse.com"
+export LANGFUSE_PUBLIC_KEY="pk-lf-..."
+export LANGFUSE_SECRET_KEY="sk-lf-..."</code></pre>
+                </div>
+
+                <div class="step">
+                    <h3>3. Basic Usage</h3>
+                    <pre><code class="language-go">package main
+
+import (
+    "context"
+    "log"
+    
+    "github.com/bdpiprava/GoLangfuse"
+    "github.com/bdpiprava/GoLangfuse/types"
+)
+
+func main() {
+    // Initialize client from environment
+    lf, err := langfuse.NewFromEnv()
+    if err != nil {
+        log.Fatal("Failed to initialize Langfuse:", err)
+    }
+    defer lf.Shutdown(context.Background())
+
+    ctx := context.Background()
+    
+    // Create a trace for a user interaction
+    traceID := lf.AddEvent(ctx, &types.TraceEvent{
+        Name:   "chat-completion",
+        UserID: "user-123",
+        Metadata: map[string]interface{}{
+            "session_id": "session-456",
+            "model":      "gpt-4",
+        },
+    })
+
+    // Track LLM generation
+    lf.AddEvent(ctx, &types.GenerationEvent{
+        Name:    "openai-completion",
+        TraceID: traceID,
+        Model:   "gpt-4",
+        Input: map[string]interface{}{
+            "messages": []map[string]string{
+                {"role": "user", "content": "Hello, world!"},
+            },
+        },
+        Output: map[string]interface{}{
+            "content": "Hello! How can I help you today?",
+        },
+        Usage: &types.Usage{
+            InputTokens:  12,
+            OutputTokens: 8,
+            TotalTokens:  20,
+        },
+        Metadata: map[string]interface{}{
+            "temperature": 0.7,
+        },
+    })
+
+    log.Println("Events tracked successfully!")
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="api-reference" class="section">
+            <div class="container">
+                <h2>API Reference</h2>
+
+                <div class="api-section">
+                    <h3>Core Interface</h3>
+                    <div class="api-method">
+                        <h4><code>type Langfuse interface</code></h4>
+                        <p>Main interface for interacting with the Langfuse API.</p>
+                        <pre><code class="language-go">type Langfuse interface {
+    AddEvent(ctx context.Context, event types.LangfuseEvent) *uuid.UUID
+    Stop(ctx context.Context) error
+    GetMetrics() Metrics
+    GetHealthStatus() HealthStatus
+    CheckHealth(ctx context.Context) HealthStatus
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="api-section">
+                    <h3>Factory Functions</h3>
+                    
+                    <div class="api-method">
+                        <h4><code>NewFromEnv() (Langfuse, error)</code></h4>
+                        <p>Creates a new Langfuse client using environment variables.</p>
+                        <div class="method-details">
+                            <h5>Environment Variables:</h5>
+                            <ul>
+                                <li><code>LANGFUSE_URL</code> - Langfuse server URL</li>
+                                <li><code>LANGFUSE_PUBLIC_KEY</code> - Public API key</li>
+                                <li><code>LANGFUSE_SECRET_KEY</code> - Secret API key</li>
+                            </ul>
+                            <h5>Returns:</h5>
+                            <ul>
+                                <li><code>Langfuse</code> - Configured client instance</li>
+                                <li><code>error</code> - Configuration or validation error</li>
+                            </ul>
+                        </div>
+                        <pre><code class="language-go">lf, err := langfuse.NewFromEnv()
+if err != nil {
+    return fmt.Errorf("failed to initialize: %w", err)
+}</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h4><code>New(config *config.Langfuse) Langfuse</code></h4>
+                        <p>Creates a new Langfuse client with explicit configuration.</p>
+                        <div class="method-details">
+                            <h5>Parameters:</h5>
+                            <ul>
+                                <li><code>config</code> - Configuration struct with all settings</li>
+                            </ul>
+                        </div>
+                        <pre><code class="language-go">cfg := &config.Langfuse{
+    URL:       "https://cloud.langfuse.com",
+    PublicKey: "pk-lf-...",
+    SecretKey: "sk-lf-...",
+    BatchSize: 20,
+    BatchTimeout: 10 * time.Second,
+}
+lf := langfuse.New(cfg)</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h4><code>NewWithClient(config *config.Langfuse, client *http.Client) Langfuse</code></h4>
+                        <p>Creates a client with custom HTTP client for advanced networking requirements.</p>
+                        <div class="method-details">
+                            <h5>Parameters:</h5>
+                            <ul>
+                                <li><code>config</code> - Configuration struct</li>
+                                <li><code>client</code> - Custom HTTP client with desired settings</li>
+                            </ul>
+                        </div>
+                        <pre><code class="language-go">httpClient := &http.Client{
+    Timeout: 60 * time.Second,
+    Transport: &http.Transport{
+        MaxIdleConns: 200,
+    },
+}
+lf := langfuse.NewWithClient(cfg, httpClient)</code></pre>
+                    </div>
+                </div>
+
+                <div class="api-section">
+                    <h3>Core Methods</h3>
+                    
+                    <div class="api-method">
+                        <h4><code>AddEvent(ctx context.Context, event types.LangfuseEvent) *uuid.UUID</code></h4>
+                        <p>Asynchronously tracks an event in Langfuse.</p>
+                        <div class="method-details">
+                            <h5>Parameters:</h5>
+                            <ul>
+                                <li><code>ctx</code> - Context for cancellation and timeouts</li>
+                                <li><code>event</code> - Event implementing LangfuseEvent interface</li>
+                            </ul>
+                            <h5>Returns:</h5>
+                            <ul>
+                                <li><code>*uuid.UUID</code> - Event ID for tracking and correlation</li>
+                            </ul>
+                        </div>
+                        <pre><code class="language-go">eventID := lf.AddEvent(ctx, &types.TraceEvent{
+    Name: "user-interaction",
+    UserID: "user-123",
+})</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h4><code>Stop(ctx context.Context) error</code></h4>
+                        <p>Gracefully shuts down the client, flushing all pending events.</p>
+                        <div class="method-details">
+                            <h5>Parameters:</h5>
+                            <ul>
+                                <li><code>ctx</code> - Context with timeout for shutdown operation</li>
+                            </ul>
+                            <h5>Returns:</h5>
+                            <ul>
+                                <li><code>error</code> - Shutdown error if operation fails</li>
+                            </ul>
+                        </div>
+                        <pre><code class="language-go">ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+defer cancel()
+
+if err := lf.Stop(ctx); err != nil {
+    log.Printf("Shutdown error: %v", err)
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="api-section">
+                    <h3>Monitoring Methods</h3>
+                    
+                    <div class="api-method">
+                        <h4><code>GetMetrics() Metrics</code></h4>
+                        <p>Returns current performance metrics and statistics.</p>
+                        <pre><code class="language-go">metrics := lf.GetMetrics()
+fmt.Printf("Events processed: %d\n", metrics.EventsProcessed)
+fmt.Printf("Success rate: %.2f%%\n", metrics.SuccessRate)</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h4><code>GetHealthStatus() HealthStatus</code></h4>
+                        <p>Returns current health status without performing checks.</p>
+                        <pre><code class="language-go">health := lf.GetHealthStatus()
+if health.Status != "healthy" {
+    log.Printf("Health issue: %s", health.Message)
+}</code></pre>
+                    </div>
+
+                    <div class="api-method">
+                        <h4><code>CheckHealth(ctx context.Context) HealthStatus</code></h4>
+                        <p>Performs active health check against Langfuse API.</p>
+                        <pre><code class="language-go">health := lf.CheckHealth(ctx)
+fmt.Printf("API Status: %s\n", health.Status)</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="configuration" class="section">
+            <div class="container">
+                <h2>Configuration</h2>
+                
+                <div class="config-section">
+                    <h3>Configuration Structure</h3>
+                    <pre><code class="language-go">type Langfuse struct {
+    // Authentication (Required)
+    URL       string `envconfig:"LANGFUSE_URL" validate:"required"`
+    PublicKey string `envconfig:"LANGFUSE_PUBLIC_KEY" validate:"required"`
+    SecretKey string `envconfig:"LANGFUSE_SECRET_KEY" validate:"required"`
+    
+    // Performance Tuning
+    NumberOfEventProcessor int           `envconfig:"LANGFUSE_EVENT_PROCESSORS" default:"1"`
+    BatchSize             int           `envconfig:"LANGFUSE_BATCH_SIZE" default:"10"`
+    BatchTimeout          time.Duration `envconfig:"LANGFUSE_BATCH_TIMEOUT" default:"5s"`
+    MaxRetries            int           `envconfig:"LANGFUSE_MAX_RETRIES" default:"3"`
+    
+    // HTTP Settings
+    Timeout                time.Duration `envconfig:"LANGFUSE_TIMEOUT" default:"30s"`
+    MaxIdleConns          int           `envconfig:"LANGFUSE_MAX_IDLE_CONNS" default:"100"`
+    MaxIdleConnsPerHost   int           `envconfig:"LANGFUSE_MAX_IDLE_CONNS_PER_HOST" default:"10"`
+    MaxConnsPerHost       int           `envconfig:"LANGFUSE_MAX_CONNS_PER_HOST" default:"100"`
+    IdleConnTimeout       time.Duration `envconfig:"LANGFUSE_IDLE_CONN_TIMEOUT" default:"90s"`
+    
+    // Debugging
+    Debug bool `envconfig:"LANGFUSE_DEBUG" default:"false"`
+}</code></pre>
+                </div>
+
+                <div class="config-section">
+                    <h3>Configuration Options</h3>
+                    
+                    <div class="config-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Parameter</th>
+                                    <th>Environment Variable</th>
+                                    <th>Default</th>
+                                    <th>Description</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><code>URL</code></td>
+                                    <td><code>LANGFUSE_URL</code></td>
+                                    <td><em>Required</em></td>
+                                    <td>Langfuse server endpoint URL</td>
+                                </tr>
+                                <tr>
+                                    <td><code>PublicKey</code></td>
+                                    <td><code>LANGFUSE_PUBLIC_KEY</code></td>
+                                    <td><em>Required</em></td>
+                                    <td>Public API key for authentication</td>
+                                </tr>
+                                <tr>
+                                    <td><code>SecretKey</code></td>
+                                    <td><code>LANGFUSE_SECRET_KEY</code></td>
+                                    <td><em>Required</em></td>
+                                    <td>Secret API key for authentication</td>
+                                </tr>
+                                <tr>
+                                    <td><code>NumberOfEventProcessor</code></td>
+                                    <td><code>LANGFUSE_EVENT_PROCESSORS</code></td>
+                                    <td><code>1</code></td>
+                                    <td>Number of concurrent worker goroutines</td>
+                                </tr>
+                                <tr>
+                                    <td><code>BatchSize</code></td>
+                                    <td><code>LANGFUSE_BATCH_SIZE</code></td>
+                                    <td><code>10</code></td>
+                                    <td>Maximum events per batch request</td>
+                                </tr>
+                                <tr>
+                                    <td><code>BatchTimeout</code></td>
+                                    <td><code>LANGFUSE_BATCH_TIMEOUT</code></td>
+                                    <td><code>5s</code></td>
+                                    <td>Maximum time to wait before sending partial batch</td>
+                                </tr>
+                                <tr>
+                                    <td><code>MaxRetries</code></td>
+                                    <td><code>LANGFUSE_MAX_RETRIES</code></td>
+                                    <td><code>3</code></td>
+                                    <td>Maximum retry attempts for failed requests</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Timeout</code></td>
+                                    <td><code>LANGFUSE_TIMEOUT</code></td>
+                                    <td><code>30s</code></td>
+                                    <td>HTTP request timeout</td>
+                                </tr>
+                                <tr>
+                                    <td><code>MaxIdleConns</code></td>
+                                    <td><code>LANGFUSE_MAX_IDLE_CONNS</code></td>
+                                    <td><code>100</code></td>
+                                    <td>Maximum idle HTTP connections</td>
+                                </tr>
+                                <tr>
+                                    <td><code>Debug</code></td>
+                                    <td><code>LANGFUSE_DEBUG</code></td>
+                                    <td><code>false</code></td>
+                                    <td>Enable debug logging</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>Configuration Examples</h3>
+                    
+                    <h4>Environment Variables</h4>
+                    <pre><code class="language-bash"># Required
+export LANGFUSE_URL="https://cloud.langfuse.com"
+export LANGFUSE_PUBLIC_KEY="pk-lf-..."
+export LANGFUSE_SECRET_KEY="sk-lf-..."
+
+# Performance Tuning
+export LANGFUSE_EVENT_PROCESSORS="3"
+export LANGFUSE_BATCH_SIZE="20"
+export LANGFUSE_BATCH_TIMEOUT="10s"
+
+# High-Throughput Setup
+export LANGFUSE_MAX_IDLE_CONNS="200"
+export LANGFUSE_TIMEOUT="60s"</code></pre>
+
+                    <h4>Programmatic Configuration</h4>
+                    <pre><code class="language-go">cfg := &config.Langfuse{
+    URL:       "https://cloud.langfuse.com",
+    PublicKey: "pk-lf-...",
+    SecretKey: "sk-lf-...",
+    
+    // Optimize for high throughput
+    NumberOfEventProcessor: 5,
+    BatchSize:             50,
+    BatchTimeout:          2 * time.Second,
+    
+    // Production HTTP settings
+    Timeout:        60 * time.Second,
+    MaxIdleConns:   200,
+    MaxRetries:     5,
+}
+
+lf := langfuse.New(cfg)</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="examples" class="section">
+            <div class="container">
+                <h2>Examples</h2>
+                
+                <div class="example-section">
+                    <h3>Complete LLM Workflow</h3>
+                    <pre><code class="language-go">package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "time"
+    
+    "github.com/bdpiprava/GoLangfuse"
+    "github.com/bdpiprava/GoLangfuse/types"
+)
+
+func main() {
+    // Initialize client
+    lf, err := langfuse.NewFromEnv()
+    if err != nil {
+        log.Fatal("Failed to initialize:", err)
+    }
+    defer lf.Shutdown(context.Background())
+
+    ctx := context.Background()
+    
+    // 1. Create a trace for the entire conversation
+    traceID := lf.AddEvent(ctx, &types.TraceEvent{
+        Name:     "chat-conversation",
+        UserID:   "user-123",
+        SessionID: "session-456",
+        Tags:     []string{"chat", "customer-support"},
+        Metadata: map[string]interface{}{
+            "channel": "web",
+            "version": "1.0",
+        },
+    })
+
+    // 2. Track user input processing
+    spanID := lf.AddEvent(ctx, &types.SpanEvent{
+        Name:    "input-processing",
+        TraceID: traceID,
+        Input: map[string]interface{}{
+            "user_message": "How do I reset my password?",
+        },
+        Metadata: map[string]interface{}{
+            "intent_detected": "password_reset",
+            "confidence":      0.95,
+        },
+    })
+
+    // 3. Track LLM generation
+    generationID := lf.AddEvent(ctx, &types.GenerationEvent{
+        Name:     "openai-completion",
+        TraceID:  traceID,
+        ParentID: spanID,
+        Model:    "gpt-4",
+        ModelParameters: map[string]interface{}{
+            "temperature": 0.7,
+            "max_tokens":  500,
+        },
+        Input: map[string]interface{}{
+            "messages": []map[string]string{
+                {"role": "system", "content": "You are a helpful customer support assistant."},
+                {"role": "user", "content": "How do I reset my password?"},
+            },
+        },
+        Output: map[string]interface{}{
+            "content": "To reset your password, please follow these steps: 1. Go to the login page...",
+        },
+        Usage: &types.Usage{
+            InputTokens:  45,
+            OutputTokens: 120,
+            TotalTokens:  165,
+        },
+        StartTime: time.Now().Add(-2 * time.Second),
+        EndTime:   time.Now(),
+    })
+
+    // 4. Track response quality
+    lf.AddEvent(ctx, &types.ScoreEvent{
+        Name:         "response-quality",
+        TraceID:      traceID,
+        ObservationID: generationID,
+        Value:        0.85,
+        Comment:      "Helpful and accurate response",
+        Source:       "user_feedback",
+    })
+
+    // 5. Update trace with final outcome
+    lf.AddEvent(ctx, &types.TraceEvent{
+        ID:     traceID,
+        Output: map[string]interface{}{
+            "resolution_status": "resolved",
+            "user_satisfaction": "high",
+        },
+        EndTime: time.Now(),
+    })
+
+    fmt.Println("Complete workflow tracked successfully!")
+}</code></pre>
+                </div>
+
+                <div class="example-section">
+                    <h3>Batch Processing</h3>
+                    <pre><code class="language-go">func processBatch(lf langfuse.Langfuse, requests []UserRequest) {
+    ctx := context.Background()
+    
+    // Create a trace for the batch operation
+    batchTraceID := lf.AddEvent(ctx, &types.TraceEvent{
+        Name: "batch-processing",
+        Metadata: map[string]interface{}{
+            "batch_size": len(requests),
+            "timestamp": time.Now(),
+        },
+    })
+
+    for i, req := range requests {
+        // Create span for each request
+        spanID := lf.AddEvent(ctx, &types.SpanEvent{
+            Name:    fmt.Sprintf("process-request-%d", i),
+            TraceID: batchTraceID,
+            Input: map[string]interface{}{
+                "request_id": req.ID,
+                "user_id":    req.UserID,
+            },
+        })
+
+        // Process with LLM
+        result := processWithLLM(req)
+        
+        // Track generation
+        lf.AddEvent(ctx, &types.GenerationEvent{
+            Name:     "batch-generation",
+            TraceID:  batchTraceID,
+            ParentID: spanID,
+            Model:    "gpt-3.5-turbo",
+            Input:    map[string]interface{}{"prompt": req.Prompt},
+            Output:   map[string]interface{}{"result": result},
+            Usage: &types.Usage{
+                InputTokens:  req.TokenCount,
+                OutputTokens: result.TokenCount,
+            },
+        })
+    }
+}</code></pre>
+                </div>
+
+                <div class="example-section">
+                    <h3>Error Handling & Monitoring</h3>
+                    <pre><code class="language-go">func monitoredOperation(lf langfuse.Langfuse) {
+    ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+    defer cancel()
+
+    // Check health before operation
+    health := lf.CheckHealth(ctx)
+    if health.Status != "healthy" {
+        log.Printf("API health check failed: %s", health.Message)
+        return
+    }
+
+    // Track operation
+    traceID := lf.AddEvent(ctx, &types.TraceEvent{
+        Name: "monitored-operation",
+    })
+
+    // Simulate some work with error handling
+    err := performOperation()
+    if err != nil {
+        // Track error as a span
+        lf.AddEvent(ctx, &types.SpanEvent{
+            Name:    "error-handling",
+            TraceID: traceID,
+            Level:   types.LevelError,
+            StatusMessage: err.Error(),
+            Metadata: map[string]interface{}{
+                "error_type": "operation_failed",
+                "timestamp": time.Now(),
+            },
+        })
+    }
+
+    // Get current metrics
+    metrics := lf.GetMetrics()
+    log.Printf("Events processed: %d, Success rate: %.2f%%", 
+        metrics.EventsProcessed, metrics.SuccessRate)
+        
+    // Graceful shutdown with context
+    shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+    defer shutdownCancel()
+    
+    if err := lf.Stop(shutdownCtx); err != nil {
+        log.Printf("Shutdown warning: %v", err)
+    }
+}</code></pre>
+                </div>
+
+                <div class="example-section">
+                    <h3>Custom HTTP Client</h3>
+                    <pre><code class="language-go">func withCustomHTTPClient() {
+    // Create custom HTTP client for specific requirements
+    transport := &http.Transport{
+        MaxIdleConns:        200,
+        MaxIdleConnsPerHost: 20,
+        IdleConnTimeout:     120 * time.Second,
+        TLSHandshakeTimeout: 10 * time.Second,
+        
+        // Custom proxy if needed
+        Proxy: http.ProxyFromEnvironment,
+        
+        // Custom TLS config
+        TLSClientConfig: &tls.Config{
+            InsecureSkipVerify: false,
+            MinVersion:         tls.VersionTLS12,
+        },
+    }
+
+    httpClient := &http.Client{
+        Transport: transport,
+        Timeout:   60 * time.Second,
+    }
+
+    cfg := &config.Langfuse{
+        URL:       "https://cloud.langfuse.com",
+        PublicKey: os.Getenv("LANGFUSE_PUBLIC_KEY"),
+        SecretKey: os.Getenv("LANGFUSE_SECRET_KEY"),
+        BatchSize: 25,
+    }
+
+    lf := langfuse.NewWithClient(cfg, httpClient)
+    defer lf.Shutdown(context.Background())
+    
+    // Use as normal
+    lf.AddEvent(context.Background(), &types.TraceEvent{
+        Name: "custom-client-trace",
+    })
+}</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <div class="container">
+                <h2>Event Types</h2>
+                
+                <div class="api-section">
+                    <h3>TraceEvent</h3>
+                    <p>Represents a complete user interaction or workflow.</p>
+                    <pre><code class="language-go">type TraceEvent struct {
+    ID        *uuid.UUID             `json:"id,omitempty"`
+    Name      string                 `json:"name" validate:"required"`
+    UserID    string                 `json:"userId,omitempty"`
+    SessionID string                 `json:"sessionId,omitempty"`
+    Version   string                 `json:"version,omitempty"`
+    Release   string                 `json:"release,omitempty"`
+    Input     map[string]interface{} `json:"input,omitempty"`
+    Output    map[string]interface{} `json:"output,omitempty"`
+    Metadata  map[string]interface{} `json:"metadata,omitempty"`
+    Tags      []string               `json:"tags,omitempty"`
+    Public    bool                   `json:"public,omitempty"`
+    StartTime time.Time              `json:"timestamp,omitempty"`
+    EndTime   time.Time              `json:"endTime,omitempty"`
+}</code></pre>
+                </div>
+
+                <div class="api-section">
+                    <h3>GenerationEvent</h3>
+                    <p>Tracks LLM API calls with comprehensive metrics.</p>
+                    <pre><code class="language-go">type GenerationEvent struct {
+    ID              *uuid.UUID             `json:"id,omitempty"`
+    TraceID         *uuid.UUID             `json:"traceId,omitempty"`
+    ParentID        *uuid.UUID             `json:"parentObservationId,omitempty"`
+    Name            string                 `json:"name" validate:"required"`
+    StartTime       time.Time              `json:"startTime,omitempty"`
+    EndTime         time.Time              `json:"endTime,omitempty"`
+    CompletionTime  time.Time              `json:"completionStartTime,omitempty"`
+    Model           string                 `json:"model,omitempty"`
+    ModelParameters map[string]interface{} `json:"modelParameters,omitempty"`
+    Input           map[string]interface{} `json:"input,omitempty"`
+    Output          map[string]interface{} `json:"output,omitempty"`
+    Usage           *Usage                 `json:"usage,omitempty"`
+    Level           Level                  `json:"level,omitempty"`
+    StatusMessage   string                 `json:"statusMessage,omitempty"`
+    Version         string                 `json:"version,omitempty"`
+    Metadata        map[string]interface{} `json:"metadata,omitempty"`
+    PromptName      string                 `json:"promptName,omitempty"`
+    PromptVersion   string                 `json:"promptVersion,omitempty"`
+}</code></pre>
+                </div>
+
+                <div class="api-section">
+                    <h3>SpanEvent</h3>
+                    <p>Tracks individual processing steps within a trace.</p>
+                    <pre><code class="language-go">type SpanEvent struct {
+    ID            *uuid.UUID             `json:"id,omitempty"`
+    TraceID       *uuid.UUID             `json:"traceId,omitempty"`
+    ParentID      *uuid.UUID             `json:"parentObservationId,omitempty"`
+    Name          string                 `json:"name" validate:"required"`
+    StartTime     time.Time              `json:"startTime,omitempty"`
+    EndTime       time.Time              `json:"endTime,omitempty"`
+    Input         map[string]interface{} `json:"input,omitempty"`
+    Output        map[string]interface{} `json:"output,omitempty"`
+    Level         Level                  `json:"level,omitempty"`
+    StatusMessage string                 `json:"statusMessage,omitempty"`
+    Version       string                 `json:"version,omitempty"`
+    Metadata      map[string]interface{} `json:"metadata,omitempty"`
+}</code></pre>
+                </div>
+
+                <div class="api-section">
+                    <h3>ScoreEvent</h3>
+                    <p>Tracks quality metrics and performance scores.</p>
+                    <pre><code class="language-go">type ScoreEvent struct {
+    ID             *uuid.UUID `json:"id,omitempty"`
+    TraceID        *uuid.UUID `json:"traceId,omitempty"`
+    ObservationID  *uuid.UUID `json:"observationId,omitempty"`
+    Name           string     `json:"name" validate:"required"`
+    Value          float64    `json:"value" validate:"required"`
+    DataType       DataType   `json:"dataType,omitempty"`
+    Comment        string     `json:"comment,omitempty"`
+    Source         string     `json:"source,omitempty"`
+    ConfigID       string     `json:"configId,omitempty"`
+}</code></pre>
+                </div>
+
+                <div class="api-section">
+                    <h3>Usage</h3>
+                    <p>Token usage and cost tracking.</p>
+                    <pre><code class="language-go">type Usage struct {
+    InputTokens        int     `json:"input,omitempty"`
+    OutputTokens       int     `json:"output,omitempty"`
+    TotalTokens        int     `json:"total,omitempty"`
+    Unit               string  `json:"unit,omitempty"`
+    InputCost          float64 `json:"inputCost,omitempty"`
+    OutputCost         float64 `json:"outputCost,omitempty"`
+    TotalCost          float64 `json:"totalCost,omitempty"`
+}</code></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>GoLangfuse</h4>
+                    <p>Production-ready Go client for Langfuse API</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Links</h4>
+                    <ul>
+                        <li><a href="https://github.com/bdpiprava/GoLangfuse">GitHub Repository</a></li>
+                        <li><a href="https://langfuse.com">Langfuse Platform</a></li>
+                        <li><a href="https://langfuse.com/docs">Langfuse Documentation</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="https://github.com/bdpiprava/GoLangfuse/issues">Report Issues</a></li>
+                        <li><a href="https://github.com/bdpiprava/GoLangfuse/discussions">Discussions</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 GoLangfuse. Licensed under Apache 2.0.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

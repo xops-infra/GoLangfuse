@@ -27,15 +27,14 @@ func AddMockTransport(t *testing.T, client *http.Client) Transport {
 	client.Transport = RoundTripperFunc(func(request *http.Request) (*http.Response, error) {
 		mockTrans.mutex.Lock()
 		mockTrans.recordedRequests = append(mockTrans.recordedRequests, request)
-		mockTrans.mutex.Unlock()
 
+		// Process expectations under lock to prevent race conditions
 		for _, exp := range mockTrans.expectations {
 			if exp.met {
 				continue
 			}
 
 			if strings.EqualFold(exp.request.URL.String(), request.URL.String()) && strings.EqualFold(exp.request.Method, request.Method) {
-				mockTrans.mutex.Lock()
 				exp.met = true
 				mockTrans.mutex.Unlock()
 
@@ -50,6 +49,7 @@ func AddMockTransport(t *testing.T, client *http.Client) Transport {
 				return exp.response, exp.error
 			}
 		}
+		mockTrans.mutex.Unlock()
 
 		assert.Failf(t, "Unexpected http request", "Request `%s %s` was not expected but client initiated", request.Method, request.URL)
 		return nil, nil
@@ -108,15 +108,20 @@ type mockTransport struct {
 }
 
 func (m *mockTransport) RecordedRequests() []*http.Request {
-	return m.recordedRequests
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
+	// Return a copy to prevent external modifications
+	result := make([]*http.Request, len(m.recordedRequests))
+	copy(result, m.recordedRequests)
+	return result
 }
 
 func (m *mockTransport) AllExpectationMet() bool {
 	m.mutex.RLock()
-	currentState := m.expectations
-	m.mutex.RUnlock()
+	defer m.mutex.RUnlock()
 
-	for _, exp := range currentState {
+	for _, exp := range m.expectations {
 		if !exp.met {
 			return false
 		}
@@ -141,6 +146,9 @@ func (m *mockTransport) expect(request *http.Request, validators ...RequestValid
 		validator: validators,
 	}
 
+	m.mutex.Lock()
 	m.expectations = append(m.expectations, expect)
+	m.mutex.Unlock()
+
 	return expect
 }

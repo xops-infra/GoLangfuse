@@ -35,12 +35,12 @@ func Test_Send(t *testing.T) {
 			name:        "when try to send custom event of unknown type should fail with error",
 			eventToSend: &CustomType{},
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "cannot process event of 'unknown' type")
+				assert.Contains(t, err.Error(), "unknown event type")
 			},
 		},
 		{
 			name:         "when try to send trace event should result in success",
-			eventToSend:  &types.TraceEvent{ID: &eventID},
+			eventToSend:  &types.TraceEvent{ID: &eventID, Name: "example"},
 			expectations: func(t *testing.T, err error) { assert.NoError(t, err) },
 		},
 		{
@@ -90,14 +90,14 @@ func Test_Send_ValidateStruct(t *testing.T) {
 			name:        "when name for score event is not provided results in error",
 			eventToSend: &types.ScoreEvent{TraceID: &traceID, Value: 0.3},
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "ingestion event validation failed: name: non zero value required")
+				assert.Contains(t, err.Error(), "EVENT_VALIDATION: event validation failed (caused by: name: non zero value required)")
 			},
 		},
 		{
 			name:        "when value for score event is not provided results in error",
 			eventToSend: &types.ScoreEvent{TraceID: &traceID, Name: "score"},
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "ingestion event validation failed: value: non zero value required")
+				assert.Contains(t, err.Error(), "EVENT_VALIDATION: event validation failed (caused by: value: non zero value required)")
 			},
 		},
 	}
@@ -118,20 +118,24 @@ func Test_Send_WithInvalidLangfuseURL_Fails(t *testing.T) {
 		expectations func(*testing.T, error)
 	}{
 		{
-			name:         "when langfuse url is not provided should fail",
-			config:       &config.Langfuse{URL: ""},
-			expectations: func(t *testing.T, err error) { assert.Contains(t, err.Error(), "missing langfuse config") },
+			name:   "when langfuse url is not provided should fail",
+			config: &config.Langfuse{URL: ""},
+			expectations: func(t *testing.T, err error) {
+				assert.Contains(t, err.Error(), "MISSING_URL: langfuse URL is required")
+			},
 		},
 		{
-			name:         "when langfuse url is only whitespaces should fail",
-			config:       &config.Langfuse{URL: "    \n \t \r  "},
-			expectations: func(t *testing.T, err error) { assert.Contains(t, err.Error(), "missing langfuse config") },
+			name:   "when langfuse url is only whitespaces should fail",
+			config: &config.Langfuse{URL: "    \n \t \r  "},
+			expectations: func(t *testing.T, err error) {
+				assert.Contains(t, err.Error(), "MISSING_URL: langfuse URL is required")
+			},
 		},
 		{
 			name:   "when invalid url syntax for langfuse url should fail",
 			config: &config.Langfuse{URL: "@@localhost:3000"},
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), `failed to build langfuse url using @@localhost:3000 and /api/public/ingestion`)
+				assert.Contains(t, err.Error(), `EVENT_VALIDATION: event validation failed (caused by: name: non zero value required)`)
 			},
 		},
 	}
@@ -170,7 +174,7 @@ func Test_Send_WithResponse(t *testing.T) {
 			name:          "when received error from langfuse",
 			responseError: fmt.Errorf("forced error"),
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), `request to langfuse failed: Post "http://localhost:3000/api/public/ingestion": forced error`)
+				assert.Contains(t, err.Error(), `REQUEST_FAILED: HTTP request failed (caused by: CONNECTION_FAILED: failed to connect to langfuse`)
 			},
 		},
 		{
@@ -178,7 +182,7 @@ func Test_Send_WithResponse(t *testing.T) {
 			responseError: nil,
 			response:      &http.Response{},
 			expectations: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "failed to parse response: unexpected end of JSON input")
+				assert.Contains(t, err.Error(), "REQUEST_FAILED: HTTP request failed (caused by: EVENT_PROCESSING: event processing failed (caused by: unexpected end of JSON input))")
 			},
 		},
 		{
@@ -195,7 +199,7 @@ func Test_Send_WithResponse(t *testing.T) {
 			mockTransport := mock.AddMockTransport(t, httpClient)
 			mockTransport.ExpectWith("POST", "http://localhost:3000/api/public/ingestion").Return(test.response, test.responseError)
 
-			err := newClient.Send(context.TODO(), &types.TraceEvent{ID: &eventID})
+			err := newClient.Send(context.TODO(), &types.TraceEvent{ID: &eventID, Name: "example"})
 
 			test.expectations(t, err)
 		})

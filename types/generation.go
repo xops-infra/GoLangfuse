@@ -15,7 +15,7 @@ import (
 //   - Name identifier of the generation. Useful for sorting/filtering in the UI.
 //   - TraceID the trace ID associated with this generation. If not provided, a new trace is created.
 //   - StartTime the time at which the generation started, defaults to the current time.
-//   - CompletionStartTime 	The time at which the completion started. Used for latency analytics broken down into time until completion started and completion duration.
+//   - CompletionStartTime The time at which the completion started. Used for latency analytics broken down into time until completion started and completion duration.
 //   - EndTime the time at which the generation ended.
 //   - Metadata additional metadata of the generation. Can be any JSON object. Metadata is merged when being updated via the API.
 //   - Model the name of the model used for the generation.
@@ -30,24 +30,24 @@ import (
 //   - PromptVersion a prompt version
 //   - PromptName a prompt name
 type GenerationEvent struct {
-	ID                  *uuid.UUID     `json:"id"`
-	Name                string         `json:"name,omitempty"`
-	TraceID             *uuid.UUID     `json:"traceId,omitempty"`
-	StartTime           time.Time      `json:"startTime,omitempty"`
-	CompletionStartTime time.Time      `json:"completionStartTime,omitempty"`
-	EndTime             time.Time      `json:"endTime,omitempty"`
-	Metadata            map[string]any `json:"metadata,omitempty"`
-	Model               string         `json:"model,omitempty"`
-	Input               any            `json:"input,omitempty"`
-	Output              any            `json:"output,omitempty"`
-	Level               Level          `json:"level,omitempty"`
-	StatusMessage       string         `json:"statusMessage,omitempty"`
-	ParentObservationID *uuid.UUID     `json:"parentObservationId,omitempty"`
-	Version             string         `json:"version,omitempty"`
-	ModelParameters     map[string]any `json:"modelParameters,omitempty"`
-	Usage               Usage          `json:"usage,omitempty"`
-	PromptVersion       int            `json:"promptVersion,omitempty"`
-	PromptName          string         `json:"promptName,omitempty"`
+	ID                  *uuid.UUID     `json:"id" valid:"-"`
+	Name                string         `json:"name,omitempty" valid:"-"`
+	TraceID             *uuid.UUID     `json:"traceId,omitempty" valid:"-"`
+	StartTime           *time.Time     `json:"startTime,omitempty" valid:"-"`
+	CompletionStartTime *time.Time     `json:"completionStartTime,omitempty" valid:"-"`
+	EndTime             *time.Time     `json:"endTime,omitempty" valid:"-"`
+	Metadata            map[string]any `json:"metadata,omitempty" valid:"-"`
+	Model               string         `json:"model,omitempty" valid:"-"`
+	Input               any            `json:"input,omitempty" valid:"-"`
+	Output              any            `json:"output,omitempty" valid:"-"`
+	Level               Level          `json:"level,omitempty" valid:"-"`
+	StatusMessage       string         `json:"statusMessage,omitempty" valid:"-"`
+	ParentObservationID *uuid.UUID     `json:"parentObservationId,omitempty" valid:"-"`
+	Version             string         `json:"version,omitempty" valid:"-"`
+	ModelParameters     map[string]any `json:"modelParameters,omitempty" valid:"-"`
+	Usage               Usage          `json:"usage,omitempty" valid:"-"`
+	PromptVersion       int            `json:"promptVersion,omitempty" valid:"range(0|9999)"`
+	PromptName          string         `json:"promptName,omitempty" valid:"-"`
 }
 
 // GetID return an event ID
@@ -69,6 +69,102 @@ func (t *GenerationEvent) Error(statusMessage string, args ...any) *GenerationEv
 
 // End set end time to now
 func (t *GenerationEvent) End() *GenerationEvent {
-	t.EndTime = time.Now().UTC()
+	now := time.Now().UTC()
+	t.EndTime = &now
 	return t
+}
+
+// Start set start time to now
+func (t *GenerationEvent) Start() *GenerationEvent {
+	now := time.Now().UTC()
+	t.StartTime = &now
+	return t
+}
+
+// GenerationBuilder provides a fluent interface for building GenerationEvent
+type GenerationBuilder struct {
+	generation *GenerationEvent
+}
+
+// NewGeneration creates a new GenerationBuilder
+func NewGeneration() *GenerationBuilder {
+	now := time.Now().UTC()
+	return &GenerationBuilder{
+		generation: &GenerationEvent{
+			StartTime: &now,
+			Level:     Default,
+		},
+	}
+}
+
+// WithID sets the generation ID
+func (b *GenerationBuilder) WithID(id uuid.UUID) *GenerationBuilder {
+	b.generation.ID = &id
+	return b
+}
+
+// WithName sets the name
+func (b *GenerationBuilder) WithName(name string) *GenerationBuilder {
+	b.generation.Name = name
+	return b
+}
+
+// WithTraceID sets the trace ID
+func (b *GenerationBuilder) WithTraceID(traceID uuid.UUID) *GenerationBuilder {
+	b.generation.TraceID = &traceID
+	return b
+}
+
+// WithModel sets the model
+func (b *GenerationBuilder) WithModel(model string) *GenerationBuilder {
+	b.generation.Model = model
+	return b
+}
+
+// WithInput sets the input
+func (b *GenerationBuilder) WithInput(input any) *GenerationBuilder {
+	b.generation.Input = input
+	return b
+}
+
+// WithOutput sets the output
+func (b *GenerationBuilder) WithOutput(output any) *GenerationBuilder {
+	b.generation.Output = output
+	return b
+}
+
+// WithMetadata sets the metadata
+func (b *GenerationBuilder) WithMetadata(metadata map[string]any) *GenerationBuilder {
+	b.generation.Metadata = metadata
+	return b
+}
+
+// WithUsage sets the usage
+func (b *GenerationBuilder) WithUsage(usage Usage) *GenerationBuilder {
+	b.generation.Usage = usage
+	return b
+}
+
+// WithPrompt sets the prompt name and version
+func (b *GenerationBuilder) WithPrompt(name string, version int) *GenerationBuilder {
+	b.generation.PromptName = name
+	b.generation.PromptVersion = version
+	return b
+}
+
+// WithParentObservation sets the parent observation ID
+func (b *GenerationBuilder) WithParentObservation(parentID uuid.UUID) *GenerationBuilder {
+	b.generation.ParentObservationID = &parentID
+	return b
+}
+
+// WithModelParameters sets the model parameters
+func (b *GenerationBuilder) WithModelParameters(params map[string]any) *GenerationBuilder {
+	b.generation.ModelParameters = params
+	return b
+}
+
+// Build returns the built GenerationEvent
+func (b *GenerationBuilder) Build() *GenerationEvent {
+	return b.generation
 }
