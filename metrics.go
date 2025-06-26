@@ -1,9 +1,23 @@
 package langfuse
 
 import (
-	"context"
 	"sync"
 	"time"
+)
+
+const (
+	queueHealthCritical   = "critical"
+	queueHealthWarning    = "warning"
+	healthStatusUnhealthy = "unhealthy"
+	healthStatusHealthy   = "healthy"
+	healthStatusDegraded  = "degraded"
+	
+	// Metrics constants
+	maxResponseTimeHistory    = 100  // Keep last 100 response times
+	queueUtilizationCritical  = 0.9  // 90% queue utilization threshold
+	queueUtilizationWarning   = 0.7  // 70% queue utilization threshold
+	errorRateCritical         = 0.1  // 10% error rate threshold
+	errorRateWarning          = 0.05 // 5% error rate threshold
 )
 
 // Metrics contains comprehensive performance and operational metrics for the GoLangfuse client.
@@ -22,17 +36,15 @@ import (
 // Example usage:
 //
 //	client := langfuse.New(config)
-//	
+//
 //	// Get current metrics
 //	metrics := client.GetMetrics()
 //	fmt.Printf("Events processed: %d\n", metrics.EventsProcessed)
-//	fmt.Printf("Success rate: %.2f%%\n", 
+//	fmt.Printf("Success rate: %.2f%%\n",
 //	    float64(metrics.HTTPRequestsSuccess)/float64(metrics.HTTPRequestsTotal)*100)
 //
 // JSON serialization is supported for integration with monitoring systems.
 type Metrics struct {
-	mu sync.RWMutex
-
 	// EventsProcessed is the total number of events successfully processed
 	// and sent to the Langfuse API since client initialization.
 	EventsProcessed int64 `json:"events_processed"`
@@ -83,7 +95,7 @@ type Metrics struct {
 
 	// ActiveProcessors is the current number of active goroutines
 	// processing events.
-	ActiveProcessors int32 `json:"active_processors"`
+	ActiveProcessors int `json:"active_processors"`
 
 	// QueueSize is the current number of events waiting in the queue
 	// to be processed.
@@ -182,16 +194,16 @@ type HealthStatus struct {
 // Example usage:
 //
 //	collector := NewMetricsCollector()
-//	
+//
 //	// Record metrics during operation
 //	collector.IncrementEventsProcessed()
 //	collector.RecordHTTPRequest(true, 150*time.Millisecond)
-//	
+//
 //	// Get current metrics
 //	metrics := collector.GetMetrics()
-//	
+//
 //	// Check health status
-//	health := collector.CheckHealth(ctx)
+//	health := collector.CheckHealth()
 type MetricsCollector struct {
 	metrics          *Metrics
 	healthStatus     *HealthStatus
@@ -228,8 +240,8 @@ func NewMetricsCollector() *MetricsCollector {
 			LastHealthCheck: now,
 		},
 		startTime:        now,
-		responseTimes:    make([]time.Duration, 0, 100), // Keep last 100 response times
-		maxResponseTimes: 100,
+		responseTimes:    make([]time.Duration, 0, maxResponseTimeHistory), // Keep last 100 response times
+		maxResponseTimes: maxResponseTimeHistory,
 	}
 }
 
@@ -244,7 +256,7 @@ func NewMetricsCollector() *MetricsCollector {
 func (mc *MetricsCollector) IncrementEventsProcessed() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.EventsProcessed++
 	now := time.Now().UTC()
 	mc.metrics.LastEventProcessedAt = &now
@@ -259,7 +271,7 @@ func (mc *MetricsCollector) IncrementEventsProcessed() {
 func (mc *MetricsCollector) IncrementEventsQueued() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.EventsQueued++
 }
 
@@ -276,7 +288,7 @@ func (mc *MetricsCollector) IncrementEventsQueued() {
 func (mc *MetricsCollector) IncrementEventsFailed(err error) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.EventsFailed++
 	now := time.Now().UTC()
 	mc.metrics.LastErrorAt = &now
@@ -294,7 +306,7 @@ func (mc *MetricsCollector) IncrementEventsFailed(err error) {
 func (mc *MetricsCollector) IncrementBatchesProcessed() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.BatchesProcessed++
 }
 
@@ -310,7 +322,7 @@ func (mc *MetricsCollector) IncrementBatchesProcessed() {
 func (mc *MetricsCollector) IncrementBatchesFailed(err error) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.BatchesFailed++
 	now := time.Now().UTC()
 	mc.metrics.LastErrorAt = &now
@@ -346,31 +358,31 @@ func (mc *MetricsCollector) IncrementBatchesFailed(err error) {
 func (mc *MetricsCollector) RecordHTTPRequest(success bool, responseTime time.Duration) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.HTTPRequestsTotal++
 	if success {
 		mc.metrics.HTTPRequestsSuccess++
 	} else {
 		mc.metrics.HTTPRequestsFailure++
 	}
-	
+
 	// Record response time
 	mc.metrics.TotalResponseTime += responseTime
-	
+
 	if responseTime > mc.metrics.MaxResponseTime {
 		mc.metrics.MaxResponseTime = responseTime
 	}
-	
+
 	if responseTime < mc.metrics.MinResponseTime || mc.metrics.MinResponseTime == 0 {
 		mc.metrics.MinResponseTime = responseTime
 	}
-	
+
 	// Keep track of recent response times for average calculation
 	mc.responseTimes = append(mc.responseTimes, responseTime)
 	if len(mc.responseTimes) > mc.maxResponseTimes {
 		mc.responseTimes = mc.responseTimes[1:]
 	}
-	
+
 	// Calculate average response time
 	if len(mc.responseTimes) > 0 {
 		var total time.Duration
@@ -395,7 +407,7 @@ func (mc *MetricsCollector) RecordHTTPRequest(success bool, responseTime time.Du
 func (mc *MetricsCollector) UpdateQueueMetrics(size, capacity int) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.QueueSize = size
 	mc.metrics.QueueCapacity = capacity
 }
@@ -410,10 +422,10 @@ func (mc *MetricsCollector) UpdateQueueMetrics(size, capacity int) {
 //   - count: current number of active processor goroutines
 //
 // Thread-safe for concurrent access.
-func (mc *MetricsCollector) UpdateActiveProcessors(count int32) {
+func (mc *MetricsCollector) UpdateActiveProcessors(count int) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	mc.metrics.ActiveProcessors = count
 }
 
@@ -430,13 +442,13 @@ func (mc *MetricsCollector) UpdateActiveProcessors(count int32) {
 // Example:
 //
 //	metrics := collector.GetMetrics()
-//	fmt.Printf("Success rate: %.2f%%\n", 
+//	fmt.Printf("Success rate: %.2f%%\n",
 //	    float64(metrics.HTTPRequestsSuccess)/float64(metrics.HTTPRequestsTotal)*100)
 //	fmt.Printf("Average response time: %v\n", metrics.AverageResponseTime)
 func (mc *MetricsCollector) GetMetrics() Metrics {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
-	
+
 	return *mc.metrics
 }
 
@@ -453,11 +465,7 @@ func (mc *MetricsCollector) GetMetrics() Metrics {
 //   - "degraded": Minor issues detected, service functional
 //   - "unhealthy": Critical issues detected, service may not function properly
 //
-// The method accepts a context for potential cancellation, though the current
-// implementation doesn't use it for cancellable operations.
-//
-// Parameters:
-//   - ctx: context for the health check operation (currently unused but reserved for future use)
+// The health check is performed synchronously and does not support cancellation.
 //
 // Returns a complete HealthStatus with overall status, component health,
 // uptime, and lists of errors and warnings.
@@ -466,7 +474,7 @@ func (mc *MetricsCollector) GetMetrics() Metrics {
 //
 // Example:
 //
-//	health := collector.CheckHealth(context.Background())
+//	health := collector.CheckHealth()
 //	if health.Status != "healthy" {
 //	    log.Printf("Health issues detected: %s", health.Status)
 //	    for _, err := range health.Errors {
@@ -476,74 +484,75 @@ func (mc *MetricsCollector) GetMetrics() Metrics {
 //	        log.Printf("WARNING: %s", warn)
 //	    }
 //	}
-func (mc *MetricsCollector) CheckHealth(ctx context.Context) HealthStatus {
+func (mc *MetricsCollector) CheckHealth() HealthStatus {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	now := time.Now().UTC()
 	health := HealthStatus{
-		Status:          "healthy",
+		Status:          healthStatusHealthy,
 		Uptime:          now.Sub(mc.startTime),
 		LastHealthCheck: now,
 		Errors:          []string{},
 		Warnings:        []string{},
 	}
-	
+
 	// Check queue health
 	queueUtilization := float64(mc.metrics.QueueSize) / float64(mc.metrics.QueueCapacity)
+
 	switch {
-	case queueUtilization > 0.9:
-		health.QueueHealth = "critical"
+	case queueUtilization > queueUtilizationCritical:
+		health.QueueHealth = queueHealthCritical
 		health.Errors = append(health.Errors, "Queue utilization critical (>90%)")
-		health.Status = "unhealthy"
-	case queueUtilization > 0.7:
-		health.QueueHealth = "warning"
+		health.Status = healthStatusUnhealthy
+	case queueUtilization > queueUtilizationWarning:
+		health.QueueHealth = queueHealthWarning
 		health.Warnings = append(health.Warnings, "Queue utilization high (>70%)")
-		if health.Status == "healthy" {
-			health.Status = "degraded"
+		if health.Status == healthStatusHealthy {
+			health.Status = healthStatusDegraded
 		}
 	default:
-		health.QueueHealth = "healthy"
+		health.QueueHealth = healthStatusHealthy
 	}
-	
+
 	// Check processor health
 	if mc.metrics.ActiveProcessors == 0 {
-		health.ProcessorHealth = "critical"
+		health.ProcessorHealth = queueHealthCritical
 		health.Errors = append(health.Errors, "No active processors")
-		health.Status = "unhealthy"
+		health.Status = healthStatusUnhealthy
 	} else {
-		health.ProcessorHealth = "healthy"
+		health.ProcessorHealth = healthStatusHealthy
 	}
-	
+
 	// Check API health based on error rates
 	if mc.metrics.HTTPRequestsTotal > 0 {
 		errorRate := float64(mc.metrics.HTTPRequestsFailure) / float64(mc.metrics.HTTPRequestsTotal)
 		switch {
-		case errorRate > 0.1: // 10% error rate
-			health.APIHealth = "critical"
+		case errorRate > errorRateCritical: // 10% error rate
+			health.APIHealth = queueHealthCritical
 			health.Errors = append(health.Errors, "High API error rate (>10%)")
-			health.Status = "unhealthy"
-		case errorRate > 0.05: // 5% error rate
-			health.APIHealth = "warning"
+			health.Status = healthStatusUnhealthy
+		case errorRate > errorRateWarning: // 5% error rate
+			health.APIHealth = queueHealthWarning
 			health.Warnings = append(health.Warnings, "Elevated API error rate (>5%)")
-			if health.Status == "healthy" {
-				health.Status = "degraded"
+			if health.Status == healthStatusHealthy {
+				health.Status = healthStatusDegraded
 			}
 		default:
-			health.APIHealth = "healthy"
+			health.APIHealth = healthStatusHealthy
 		}
 	} else {
 		health.APIHealth = "unknown"
 	}
-	
+
 	// Check for recent errors
 	if mc.metrics.LastErrorAt != nil && now.Sub(*mc.metrics.LastErrorAt) < 5*time.Minute {
 		health.Warnings = append(health.Warnings, "Recent errors detected")
-		if health.Status == "healthy" {
-			health.Status = "degraded"
+		if health.Status == healthStatusHealthy {
+			health.Status = healthStatusDegraded
 		}
 	}
-	
+
 	mc.healthStatus = &health
 	return health
 }
@@ -566,13 +575,13 @@ func (mc *MetricsCollector) CheckHealth(ctx context.Context) HealthStatus {
 //
 //	// Get cached health status (fast)
 //	lastHealth := collector.GetHealthStatus()
-//	
+//
 //	// Or get current health status (more accurate but slower)
-//	currentHealth := collector.CheckHealth(ctx)
+//	currentHealth := collector.CheckHealth()
 func (mc *MetricsCollector) GetHealthStatus() HealthStatus {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
-	
+
 	if mc.healthStatus == nil {
 		return HealthStatus{Status: "unknown"}
 	}
@@ -602,7 +611,7 @@ func (mc *MetricsCollector) GetHealthStatus() HealthStatus {
 func (mc *MetricsCollector) Reset() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
-	
+
 	now := time.Now().UTC()
 	mc.metrics = &Metrics{
 		StartTime:       now,

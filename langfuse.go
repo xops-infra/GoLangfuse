@@ -53,7 +53,7 @@ func New(config *config.Langfuse) Langfuse {
 		logger := logger.FromContext(context.Background())
 		logger.Fatalf("invalid langfuse configuration: %v", err)
 	}
-	
+
 	optimizedClient := NewOptimizedHTTPClient(config)
 	return NewWithClient(config, optimizedClient)
 }
@@ -64,9 +64,9 @@ func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langf
 		logger := logger.FromContext(context.Background())
 		logger.Fatalf("invalid langfuse configuration: %v", err)
 	}
-	
+
 	metricsCollector := NewMetricsCollector()
-	
+
 	eventManager := &langfuseService{
 		client:           NewClient(config, customHTTPClient),
 		config:           config,
@@ -74,11 +74,11 @@ func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langf
 		stopChannel:      make(chan struct{}),
 		metricsCollector: metricsCollector,
 	}
-	
+
 	// Initialize metrics
 	metricsCollector.UpdateQueueMetrics(0, maxParallelItem)
-	metricsCollector.UpdateActiveProcessors(int32(config.NumberOfEventProcessor))
-	
+	metricsCollector.UpdateActiveProcessors(config.NumberOfEventProcessor)
+
 	eventManager.startBatchProcessors(config.NumberOfEventProcessor)
 	return eventManager
 }
@@ -99,7 +99,7 @@ func (l *langfuseService) startBatchProcessors(count int) {
 		return
 	}
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		l.wg.Add(1)
 		go func(processorID int) {
 			defer l.wg.Done()
@@ -147,7 +147,7 @@ func (l *langfuseService) processBatches(processorID int) {
 			}
 
 			batch = append(batch, item)
-			
+
 			// Update queue metrics
 			l.metricsCollector.UpdateQueueMetrics(len(l.eventChannel), maxParallelItem)
 
@@ -182,7 +182,7 @@ func (l *langfuseService) sendBatch(ctx context.Context, events []types.Langfuse
 		log.WithError(err).Errorf("failed to send batch of %d events", len(events))
 		l.metricsCollector.IncrementBatchesFailed(err)
 		l.metricsCollector.RecordHTTPRequest(false, responseTime)
-		
+
 		// Fall back to individual sends on batch failure
 		for _, event := range events {
 			individualStart := time.Now()
@@ -245,7 +245,7 @@ func (l *langfuseService) GetHealthStatus() HealthStatus {
 
 // CheckHealth performs health checks and returns status
 func (l *langfuseService) CheckHealth(ctx context.Context) HealthStatus {
-	return l.metricsCollector.CheckHealth(ctx)
+	return l.metricsCollector.CheckHealth()
 }
 
 // ensureEventID ensures that the IngestionEvent has a unique ID, generating one if missing.
