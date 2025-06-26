@@ -1,4 +1,33 @@
-// Package langfuse provides structured error types for better error handling
+// Package langfuse provides structured error types for better error handling and observability integration.
+//
+// This package defines comprehensive error types that align with Langfuse API responses and provide
+// structured error handling capabilities including error categorization, retry logic, and detailed
+// context for debugging and monitoring.
+//
+// Error Categories:
+//   - CONFIG: Configuration-related errors (missing keys, invalid URLs)
+//   - VALIDATION: Input validation errors (invalid event data, malformed IDs)
+//   - NETWORK: Network connectivity and timeout errors
+//   - API: HTTP API errors from Langfuse service (4xx/5xx responses)
+//   - PROCESSING: Internal processing errors (batch failures, service state)
+//
+// Usage:
+//
+//	// Create errors with context
+//	err := ErrAPIUnauthorized.WithStatusCode(401).WithDetails(map[string]any{
+//	    "endpoint": "/api/traces",
+//	    "method": "POST",
+//	})
+//
+//	// Check error properties
+//	if langfuseErr, ok := err.(*LangfuseError); ok {
+//	    if langfuseErr.IsRetryable() {
+//	        // Implement retry logic
+//	    }
+//	}
+//
+//	// Wrap existing errors
+//	wrappedErr := WrapError(originalErr, ErrNetworkTimeout)
 package langfuse
 
 import (

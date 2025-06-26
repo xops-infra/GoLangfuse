@@ -1,4 +1,3 @@
-// Package langfuse provides performance monitoring and metrics collection
 package langfuse
 
 import (
@@ -7,43 +6,192 @@ import (
 	"time"
 )
 
-// Metrics represents performance metrics for the Langfuse client
+// Metrics contains comprehensive performance and operational metrics for the GoLangfuse client.
+//
+// This struct provides detailed insights into the client's operation including:
+//   - Event processing statistics (processed, queued, failed)
+//   - Batch processing metrics (batches processed and failed)
+//   - HTTP request performance (total, success, failure counts and response times)
+//   - Resource utilization (active processors, queue usage)
+//   - Error tracking (last error time and message)
+//
+// All metrics are thread-safe and can be safely accessed concurrently.
+// Metrics are automatically updated by the GoLangfuse client during operation
+// and can be retrieved using the GetMetrics() method.
+//
+// Example usage:
+//
+//	client := langfuse.New(config)
+//	
+//	// Get current metrics
+//	metrics := client.GetMetrics()
+//	fmt.Printf("Events processed: %d\n", metrics.EventsProcessed)
+//	fmt.Printf("Success rate: %.2f%%\n", 
+//	    float64(metrics.HTTPRequestsSuccess)/float64(metrics.HTTPRequestsTotal)*100)
+//
+// JSON serialization is supported for integration with monitoring systems.
 type Metrics struct {
-	mu                    sync.RWMutex
-	EventsProcessed       int64         `json:"events_processed"`
-	EventsQueued          int64         `json:"events_queued"`
-	EventsFailed          int64         `json:"events_failed"`
-	BatchesProcessed      int64         `json:"batches_processed"`
-	BatchesFailed         int64         `json:"batches_failed"`
-	HTTPRequestsTotal     int64         `json:"http_requests_total"`
-	HTTPRequestsSuccess   int64         `json:"http_requests_success"`
-	HTTPRequestsFailure   int64         `json:"http_requests_failure"`
-	AverageResponseTime   time.Duration `json:"average_response_time"`
-	TotalResponseTime     time.Duration `json:"total_response_time"`
-	MaxResponseTime       time.Duration `json:"max_response_time"`
-	MinResponseTime       time.Duration `json:"min_response_time"`
-	ActiveProcessors      int32         `json:"active_processors"`
-	QueueSize             int           `json:"queue_size"`
-	QueueCapacity         int           `json:"queue_capacity"`
-	StartTime             time.Time     `json:"start_time"`
-	LastEventProcessedAt  *time.Time    `json:"last_event_processed_at"`
-	LastErrorAt           *time.Time    `json:"last_error_at"`
-	LastError             string        `json:"last_error,omitempty"`
+	mu sync.RWMutex
+
+	// EventsProcessed is the total number of events successfully processed
+	// and sent to the Langfuse API since client initialization.
+	EventsProcessed int64 `json:"events_processed"`
+
+	// EventsQueued is the total number of events that have been queued
+	// for processing. This includes events currently being processed.
+	EventsQueued int64 `json:"events_queued"`
+
+	// EventsFailed is the total number of events that failed to be processed
+	// or sent to the API, even after retries.
+	EventsFailed int64 `json:"events_failed"`
+
+	// BatchesProcessed is the total number of event batches successfully
+	// sent to the Langfuse API.
+	BatchesProcessed int64 `json:"batches_processed"`
+
+	// BatchesFailed is the total number of event batches that failed
+	// to be sent to the API, even after retries.
+	BatchesFailed int64 `json:"batches_failed"`
+
+	// HTTPRequestsTotal is the total number of HTTP requests made to
+	// the Langfuse API (includes both successful and failed requests).
+	HTTPRequestsTotal int64 `json:"http_requests_total"`
+
+	// HTTPRequestsSuccess is the number of HTTP requests that completed
+	// successfully (2xx status codes).
+	HTTPRequestsSuccess int64 `json:"http_requests_success"`
+
+	// HTTPRequestsFailure is the number of HTTP requests that failed
+	// (non-2xx status codes, network errors, timeouts).
+	HTTPRequestsFailure int64 `json:"http_requests_failure"`
+
+	// AverageResponseTime is the rolling average response time for HTTP
+	// requests to the Langfuse API (based on last 100 requests).
+	AverageResponseTime time.Duration `json:"average_response_time"`
+
+	// TotalResponseTime is the cumulative response time for all HTTP
+	// requests made to the API.
+	TotalResponseTime time.Duration `json:"total_response_time"`
+
+	// MaxResponseTime is the maximum response time observed for any
+	// HTTP request to the API.
+	MaxResponseTime time.Duration `json:"max_response_time"`
+
+	// MinResponseTime is the minimum response time observed for any
+	// HTTP request to the API.
+	MinResponseTime time.Duration `json:"min_response_time"`
+
+	// ActiveProcessors is the current number of active goroutines
+	// processing events.
+	ActiveProcessors int32 `json:"active_processors"`
+
+	// QueueSize is the current number of events waiting in the queue
+	// to be processed.
+	QueueSize int `json:"queue_size"`
+
+	// QueueCapacity is the maximum number of events that can be queued.
+	// When this limit is reached, new events may be dropped or block.
+	QueueCapacity int `json:"queue_capacity"`
+
+	// StartTime is when the metrics collection began (typically when
+	// the client was initialized).
+	StartTime time.Time `json:"start_time"`
+
+	// LastEventProcessedAt is the timestamp of when the last event
+	// was successfully processed. Nil if no events have been processed.
+	LastEventProcessedAt *time.Time `json:"last_event_processed_at"`
+
+	// LastErrorAt is the timestamp of when the last error occurred.
+	// Nil if no errors have occurred.
+	LastErrorAt *time.Time `json:"last_error_at"`
+
+	// LastError contains the error message from the most recent error.
+	// Empty string if no errors have occurred.
+	LastError string `json:"last_error,omitempty"`
 }
 
-// HealthStatus represents the health status of the Langfuse service
+// HealthStatus provides a comprehensive health assessment of the GoLangfuse client.
+//
+// The health status includes overall status and component-specific health indicators
+// to help diagnose issues and monitor the client's operational state.
+//
+// Health Status Values:
+//   - "healthy": All components operating normally
+//   - "degraded": Some issues detected but service is functional
+//   - "unhealthy": Critical issues detected, service may not be functioning
+//   - "starting": Client is initializing
+//   - "unknown": Health status cannot be determined
+//
+// Component Health Values:
+//   - "healthy": Component operating normally
+//   - "warning": Component has minor issues
+//   - "critical": Component has serious issues
+//   - "unknown": Component status cannot be determined
+//
+// Example usage:
+//
+//	health := client.CheckHealth(ctx)
+//	if health.Status != "healthy" {
+//	    log.Printf("Client health: %s", health.Status)
+//	    for _, err := range health.Errors {
+//	        log.Printf("Error: %s", err)
+//	    }
+//	}
 type HealthStatus struct {
-	Status           string        `json:"status"`
-	Uptime           time.Duration `json:"uptime"`
-	QueueHealth      string        `json:"queue_health"`
-	ProcessorHealth  string        `json:"processor_health"`
-	APIHealth        string        `json:"api_health"`
-	LastHealthCheck  time.Time     `json:"last_health_check"`
-	Errors           []string      `json:"errors,omitempty"`
-	Warnings         []string      `json:"warnings,omitempty"`
+	// Status is the overall health status of the client.
+	// Possible values: "healthy", "degraded", "unhealthy", "starting", "unknown"
+	Status string `json:"status"`
+
+	// Uptime is how long the client has been running since initialization.
+	Uptime time.Duration `json:"uptime"`
+
+	// QueueHealth indicates the health of the event queue.
+	// Based on queue utilization and capacity.
+	QueueHealth string `json:"queue_health"`
+
+	// ProcessorHealth indicates the health of event processors.
+	// Based on active processor count and processing activity.
+	ProcessorHealth string `json:"processor_health"`
+
+	// APIHealth indicates the health of API connectivity.
+	// Based on HTTP request success/failure rates.
+	APIHealth string `json:"api_health"`
+
+	// LastHealthCheck is when this health status was last updated.
+	LastHealthCheck time.Time `json:"last_health_check"`
+
+	// Errors contains critical issues that require immediate attention.
+	// These issues may cause service disruption.
+	Errors []string `json:"errors,omitempty"`
+
+	// Warnings contains non-critical issues that should be monitored.
+	// These issues may indicate potential future problems.
+	Warnings []string `json:"warnings,omitempty"`
 }
 
-// MetricsCollector handles metrics collection and health monitoring
+// MetricsCollector handles comprehensive metrics collection and health monitoring
+// for the GoLangfuse client.
+//
+// The collector is thread-safe and designed for concurrent access from multiple
+// goroutines. It tracks various performance metrics and provides health assessment
+// capabilities for monitoring and alerting.
+//
+// The collector automatically maintains rolling averages for response times and
+// provides detailed health checks based on configurable thresholds.
+//
+// Example usage:
+//
+//	collector := NewMetricsCollector()
+//	
+//	// Record metrics during operation
+//	collector.IncrementEventsProcessed()
+//	collector.RecordHTTPRequest(true, 150*time.Millisecond)
+//	
+//	// Get current metrics
+//	metrics := collector.GetMetrics()
+//	
+//	// Check health status
+//	health := collector.CheckHealth(ctx)
 type MetricsCollector struct {
 	metrics          *Metrics
 	healthStatus     *HealthStatus
@@ -53,7 +201,21 @@ type MetricsCollector struct {
 	maxResponseTimes int
 }
 
-// NewMetricsCollector creates a new metrics collector
+// NewMetricsCollector creates a new MetricsCollector with initialized metrics and health status.
+//
+// The collector starts in "starting" status and initializes all counters to zero.
+// Response time tracking is configured to maintain a rolling window of the last
+// 100 response times for calculating averages.
+//
+// The collector is immediately ready for use and thread-safe for concurrent access.
+//
+// Returns a fully initialized MetricsCollector ready for metrics collection.
+//
+// Example:
+//
+//	collector := NewMetricsCollector()
+//	// Collector is ready to use immediately
+//	collector.IncrementEventsQueued()
 func NewMetricsCollector() *MetricsCollector {
 	now := time.Now().UTC()
 	return &MetricsCollector{
@@ -71,7 +233,14 @@ func NewMetricsCollector() *MetricsCollector {
 	}
 }
 
-// IncrementEventsProcessed increments the processed events counter
+// IncrementEventsProcessed increments the processed events counter and updates
+// the last processed timestamp.
+//
+// This method should be called each time an event is successfully processed
+// and sent to the Langfuse API. It's thread-safe and can be called concurrently.
+//
+// The method updates both the EventsProcessed counter and the LastEventProcessedAt
+// timestamp to track processing activity.
 func (mc *MetricsCollector) IncrementEventsProcessed() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -81,7 +250,12 @@ func (mc *MetricsCollector) IncrementEventsProcessed() {
 	mc.metrics.LastEventProcessedAt = &now
 }
 
-// IncrementEventsQueued increments the queued events counter
+// IncrementEventsQueued increments the queued events counter.
+//
+// This method should be called each time an event is added to the processing
+// queue. It helps track the total volume of events flowing through the system.
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) IncrementEventsQueued() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -89,7 +263,16 @@ func (mc *MetricsCollector) IncrementEventsQueued() {
 	mc.metrics.EventsQueued++
 }
 
-// IncrementEventsFailed increments the failed events counter
+// IncrementEventsFailed increments the failed events counter and records error details.
+//
+// This method should be called when an event fails to be processed or sent to the
+// API, even after retries. It updates error tracking metrics including the failure
+// count, last error timestamp, and error message.
+//
+// Parameters:
+//   - err: The error that caused the event to fail (can be nil)
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) IncrementEventsFailed(err error) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -102,7 +285,12 @@ func (mc *MetricsCollector) IncrementEventsFailed(err error) {
 	}
 }
 
-// IncrementBatchesProcessed increments the processed batches counter
+// IncrementBatchesProcessed increments the processed batches counter.
+//
+// This method should be called each time a batch of events is successfully
+// sent to the Langfuse API. It helps track batching efficiency and throughput.
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) IncrementBatchesProcessed() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -110,7 +298,15 @@ func (mc *MetricsCollector) IncrementBatchesProcessed() {
 	mc.metrics.BatchesProcessed++
 }
 
-// IncrementBatchesFailed increments the failed batches counter
+// IncrementBatchesFailed increments the failed batches counter and records error details.
+//
+// This method should be called when a batch of events fails to be sent to the API,
+// even after retries. It updates error tracking metrics for batch processing failures.
+//
+// Parameters:
+//   - err: The error that caused the batch to fail (can be nil)
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) IncrementBatchesFailed(err error) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -123,7 +319,30 @@ func (mc *MetricsCollector) IncrementBatchesFailed(err error) {
 	}
 }
 
-// RecordHTTPRequest records HTTP request metrics
+// RecordHTTPRequest records comprehensive HTTP request metrics including success/failure
+// counts and response time statistics.
+//
+// This method should be called after each HTTP request to the Langfuse API to track
+// performance and reliability metrics. It updates request counters, response time
+// statistics, and maintains a rolling average of recent response times.
+//
+// Response Time Tracking:
+//   - Updates total, min, max, and average response times
+//   - Maintains a rolling window of the last 100 response times for average calculation
+//   - Automatically manages the response time history buffer
+//
+// Parameters:
+//   - success: true if the HTTP request completed successfully (2xx status), false otherwise
+//   - responseTime: the total time taken for the HTTP request
+//
+// Thread-safe for concurrent access.
+//
+// Example:
+//
+//	start := time.Now()
+//	resp, err := http.Get(url)
+//	duration := time.Since(start)
+//	collector.RecordHTTPRequest(err == nil && resp.StatusCode < 300, duration)
 func (mc *MetricsCollector) RecordHTTPRequest(success bool, responseTime time.Duration) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -162,7 +381,17 @@ func (mc *MetricsCollector) RecordHTTPRequest(success bool, responseTime time.Du
 	}
 }
 
-// UpdateQueueMetrics updates queue-related metrics
+// UpdateQueueMetrics updates queue-related metrics with current size and capacity.
+//
+// This method should be called periodically to track queue utilization, which is
+// important for performance monitoring and health assessment. High queue utilization
+// may indicate processing bottlenecks or insufficient processor capacity.
+//
+// Parameters:
+//   - size: current number of events in the queue waiting to be processed
+//   - capacity: maximum number of events the queue can hold
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) UpdateQueueMetrics(size, capacity int) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -171,7 +400,16 @@ func (mc *MetricsCollector) UpdateQueueMetrics(size, capacity int) {
 	mc.metrics.QueueCapacity = capacity
 }
 
-// UpdateActiveProcessors updates the active processors count
+// UpdateActiveProcessors updates the count of active event processor goroutines.
+//
+// This method should be called when processor goroutines are started or stopped
+// to maintain an accurate count of active processors. This information is used
+// for health monitoring and capacity planning.
+//
+// Parameters:
+//   - count: current number of active processor goroutines
+//
+// Thread-safe for concurrent access.
 func (mc *MetricsCollector) UpdateActiveProcessors(count int32) {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -179,7 +417,22 @@ func (mc *MetricsCollector) UpdateActiveProcessors(count int32) {
 	mc.metrics.ActiveProcessors = count
 }
 
-// GetMetrics returns a copy of current metrics
+// GetMetrics returns a copy of the current metrics snapshot.
+//
+// This method provides a consistent view of all metrics at the time of the call.
+// The returned Metrics struct is a copy, so it won't be affected by concurrent
+// updates to the collector.
+//
+// Returns a complete Metrics struct containing all current metric values.
+//
+// Thread-safe for concurrent access (uses read lock for better performance).
+//
+// Example:
+//
+//	metrics := collector.GetMetrics()
+//	fmt.Printf("Success rate: %.2f%%\n", 
+//	    float64(metrics.HTTPRequestsSuccess)/float64(metrics.HTTPRequestsTotal)*100)
+//	fmt.Printf("Average response time: %v\n", metrics.AverageResponseTime)
 func (mc *MetricsCollector) GetMetrics() Metrics {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
@@ -187,7 +440,42 @@ func (mc *MetricsCollector) GetMetrics() Metrics {
 	return *mc.metrics
 }
 
-// CheckHealth performs health checks and returns status
+// CheckHealth performs comprehensive health assessment and returns detailed health status.
+//
+// This method evaluates the health of various components and subsystems:
+//   - Queue Health: Based on queue utilization (>90% critical, >70% warning)
+//   - Processor Health: Based on active processor count (0 is critical)
+//   - API Health: Based on HTTP request error rates (>10% critical, >5% warning)
+//   - Recent Errors: Warnings for errors within the last 5 minutes
+//
+// Health Status Levels:
+//   - "healthy": All components operating normally
+//   - "degraded": Minor issues detected, service functional
+//   - "unhealthy": Critical issues detected, service may not function properly
+//
+// The method accepts a context for potential cancellation, though the current
+// implementation doesn't use it for cancellable operations.
+//
+// Parameters:
+//   - ctx: context for the health check operation (currently unused but reserved for future use)
+//
+// Returns a complete HealthStatus with overall status, component health,
+// uptime, and lists of errors and warnings.
+//
+// Thread-safe for concurrent access.
+//
+// Example:
+//
+//	health := collector.CheckHealth(context.Background())
+//	if health.Status != "healthy" {
+//	    log.Printf("Health issues detected: %s", health.Status)
+//	    for _, err := range health.Errors {
+//	        log.Printf("ERROR: %s", err)
+//	    }
+//	    for _, warn := range health.Warnings {
+//	        log.Printf("WARNING: %s", warn)
+//	    }
+//	}
 func (mc *MetricsCollector) CheckHealth(ctx context.Context) HealthStatus {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
@@ -260,7 +548,27 @@ func (mc *MetricsCollector) CheckHealth(ctx context.Context) HealthStatus {
 	return health
 }
 
-// GetHealthStatus returns the last known health status
+// GetHealthStatus returns the most recently computed health status.
+//
+// This method returns the cached health status from the last call to CheckHealth().
+// If CheckHealth() has never been called, it returns a status of "unknown".
+//
+// This method is useful for retrieving health status without performing the
+// computational overhead of a full health assessment. For the most current
+// health status, use CheckHealth() instead.
+//
+// Returns the last known HealthStatus, or a status of "unknown" if no health
+// check has been performed yet.
+//
+// Thread-safe for concurrent access (uses read lock for better performance).
+//
+// Example:
+//
+//	// Get cached health status (fast)
+//	lastHealth := collector.GetHealthStatus()
+//	
+//	// Or get current health status (more accurate but slower)
+//	currentHealth := collector.CheckHealth(ctx)
 func (mc *MetricsCollector) GetHealthStatus() HealthStatus {
 	mc.mu.RLock()
 	defer mc.mu.RUnlock()
@@ -271,7 +579,26 @@ func (mc *MetricsCollector) GetHealthStatus() HealthStatus {
 	return *mc.healthStatus
 }
 
-// Reset resets all metrics (useful for testing)
+// Reset resets all metrics and health status to initial values.
+//
+// This method is primarily intended for testing purposes, allowing tests to
+// start with a clean metrics state. In production, metrics should typically
+// accumulate over the lifetime of the client.
+//
+// The reset operation:
+//   - Clears all counters and statistics
+//   - Resets start time to current time
+//   - Sets health status back to "starting"
+//   - Clears response time history
+//   - Reinitializes the metrics collector to its initial state
+//
+// Thread-safe for concurrent access.
+//
+// Example:
+//
+//	// Reset metrics for a new test
+//	collector.Reset()
+//	// Collector is now in initial state
 func (mc *MetricsCollector) Reset() {
 	mc.mu.Lock()
 	defer mc.mu.Unlock()
