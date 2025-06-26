@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/asaskevich/govalidator"
+	"github.com/kelseyhightower/envconfig"
 )
 
 // Langfuse holds config for langfuse api calls
@@ -32,14 +33,28 @@ func (c *Langfuse) Validate() error {
 	if _, err := govalidator.ValidateStruct(c); err != nil {
 		return fmt.Errorf("configuration validation failed: %w", err)
 	}
-	
+
 	if c.NumberOfEventProcessor <= 0 {
 		return fmt.Errorf("number of event processors must be greater than 0")
 	}
-	
+
 	if c.BatchSize <= 0 {
 		return fmt.Errorf("batch size must be greater than 0")
 	}
-	
+
 	return nil
+}
+
+// LoadLangfuseConfig loads the Langfuse configuration from environment variables
+func LoadLangfuseConfig() (*Langfuse, error) {
+	cfg := &Langfuse{}
+	if err := envconfig.Process("langfuse", cfg); err != nil {
+		return nil, fmt.Errorf("failed to load langfuse config: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("langfuse config validation failed: %w", err)
+	}
+
+	return cfg, nil
 }

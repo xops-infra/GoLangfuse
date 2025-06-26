@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -19,12 +20,12 @@ import (
 )
 
 func Test_AddEvent_ShouldCallClientToSendEvents(t *testing.T) {
-	cfg := &config.Langfuse{
-		URL:                    "http://localhost:3000",
-		PublicKey:              "LangfusePublicKey",
-		SecretKey:              "LangfuseSecretKey",
-		NumberOfEventProcessor: 1,
-	}
+	os.Setenv("LANGFUSE_URL", "http://localhost:3000")
+	os.Setenv("LANGFUSE_PUBLIC_KEY", "LangfusePublicKey")
+	os.Setenv("LANGFUSE_SECRET_KEY", "LangfuseSecretKey")
+	cfg, err := config.LoadLangfuseConfig()
+	require.NoError(t, err, "Failed to load configuration")
+
 	httpClient := &http.Client{}
 	eventID := uuid.MustParse("f8359e80-1ecd-471b-bf2a-49d2009a9179")
 	mockTransport := mock.AddMockTransport(t, httpClient)
