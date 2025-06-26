@@ -22,9 +22,11 @@ import (
 )
 
 const (
-	retryBackoffBase        = 2    // Base for exponential backoff calculation
-	compressionThreshold    = 1024 // Compress payload if > 1KB
-	httpClientErrorStart    = 400  // HTTP client error status codes start
+	eventTypeUnknown = "unknown"
+
+	retryBackoffBase     = 2    // Base for exponential backoff calculation
+	compressionThreshold = 1024 // Compress payload if > 1KB
+	httpClientErrorStart = 400  // HTTP client error status codes start
 )
 
 // Client a client interface for sending events to a Langfuse server
@@ -74,7 +76,7 @@ func (c client) Send(ctx context.Context, ingestionEvent types.LangfuseEvent) er
 	}
 
 	eventType := getEventType(ingestionEvent)
-	if eventType == "unknown" {
+	if eventType == eventTypeUnknown {
 		log.Errorf("cannot process event of 'unknown' type")
 		return ErrUnknownEventType
 	}
@@ -126,7 +128,7 @@ func (c client) SendBatch(ctx context.Context, events []types.LangfuseEvent) err
 	var batchEvents []event
 	for i, ingestionEvent := range events {
 		eventType := getEventType(ingestionEvent)
-		if eventType == "unknown" {
+		if eventType == eventTypeUnknown {
 			log.Errorf("cannot process event of 'unknown' type")
 			return ErrUnknownEventType.WithDetails(map[string]any{
 				"event_index": i,
@@ -322,5 +324,5 @@ func getEventType(ingestionEvent types.LangfuseEvent) string {
 	case *types.ScoreEvent:
 		return "score-create"
 	}
-	return "unknown"
+	return eventTypeUnknown
 }

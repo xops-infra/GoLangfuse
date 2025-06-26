@@ -244,7 +244,7 @@ func (l *langfuseService) GetHealthStatus() HealthStatus {
 }
 
 // CheckHealth performs health checks and returns status
-func (l *langfuseService) CheckHealth(ctx context.Context) HealthStatus {
+func (l *langfuseService) CheckHealth(_ context.Context) HealthStatus {
 	return l.metricsCollector.CheckHealth()
 }
 

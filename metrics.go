@@ -5,19 +5,29 @@ import (
 	"time"
 )
 
+// HealthStatusValue represents the health status of the GoLangfuse client.
+type HealthStatusValue string
+
+type ComponentHealthValue string
+
 const (
-	queueHealthCritical   = "critical"
-	queueHealthWarning    = "warning"
-	healthStatusUnhealthy = "unhealthy"
-	healthStatusHealthy   = "healthy"
-	healthStatusDegraded  = "degraded"
-	
+	cmpHealthHealthy  ComponentHealthValue = "healthy"
+	cmpHealthCritical ComponentHealthValue = "critical"
+	cmpHealthWarning  ComponentHealthValue = "warning"
+	cmpHealthUnknown  ComponentHealthValue = "unknown"
+
+	healthStatusHealthy   HealthStatusValue = "healthy"
+	healthStatusDegraded  HealthStatusValue = "degraded"
+	healthStatusStarting  HealthStatusValue = "starting"
+	healthStatusUnhealthy HealthStatusValue = "unhealthy"
+	healthStatusUnknown   HealthStatusValue = "unknown"
+
 	// Metrics constants
-	maxResponseTimeHistory    = 100  // Keep last 100 response times
-	queueUtilizationCritical  = 0.9  // 90% queue utilization threshold
-	queueUtilizationWarning   = 0.7  // 70% queue utilization threshold
-	errorRateCritical         = 0.1  // 10% error rate threshold
-	errorRateWarning          = 0.05 // 5% error rate threshold
+	maxResponseTimeHistory   = 100  // Keep last 100 response times
+	queueUtilizationCritical = 0.9  // 90% queue utilization threshold
+	queueUtilizationWarning  = 0.7  // 70% queue utilization threshold
+	errorRateCritical        = 0.1  // 10% error rate threshold
+	errorRateWarning         = 0.05 // 5% error rate threshold
 )
 
 // Metrics contains comprehensive performance and operational metrics for the GoLangfuse client.
@@ -152,22 +162,22 @@ type Metrics struct {
 type HealthStatus struct {
 	// Status is the overall health status of the client.
 	// Possible values: "healthy", "degraded", "unhealthy", "starting", "unknown"
-	Status string `json:"status"`
+	Status HealthStatusValue `json:"status"`
 
 	// Uptime is how long the client has been running since initialization.
 	Uptime time.Duration `json:"uptime"`
 
 	// QueueHealth indicates the health of the event queue.
 	// Based on queue utilization and capacity.
-	QueueHealth string `json:"queue_health"`
+	QueueHealth ComponentHealthValue `json:"queue_health"`
 
 	// ProcessorHealth indicates the health of event processors.
 	// Based on active processor count and processing activity.
-	ProcessorHealth string `json:"processor_health"`
+	ProcessorHealth ComponentHealthValue `json:"processor_health"`
 
 	// APIHealth indicates the health of API connectivity.
 	// Based on HTTP request success/failure rates.
-	APIHealth string `json:"api_health"`
+	APIHealth ComponentHealthValue `json:"api_health"`
 
 	// LastHealthCheck is when this health status was last updated.
 	LastHealthCheck time.Time `json:"last_health_check"`
@@ -502,26 +512,26 @@ func (mc *MetricsCollector) CheckHealth() HealthStatus {
 
 	switch {
 	case queueUtilization > queueUtilizationCritical:
-		health.QueueHealth = queueHealthCritical
+		health.QueueHealth = cmpHealthCritical
 		health.Errors = append(health.Errors, "Queue utilization critical (>90%)")
 		health.Status = healthStatusUnhealthy
 	case queueUtilization > queueUtilizationWarning:
-		health.QueueHealth = queueHealthWarning
+		health.QueueHealth = cmpHealthWarning
 		health.Warnings = append(health.Warnings, "Queue utilization high (>70%)")
 		if health.Status == healthStatusHealthy {
 			health.Status = healthStatusDegraded
 		}
 	default:
-		health.QueueHealth = healthStatusHealthy
+		health.QueueHealth = cmpHealthHealthy
 	}
 
 	// Check processor health
 	if mc.metrics.ActiveProcessors == 0 {
-		health.ProcessorHealth = queueHealthCritical
+		health.ProcessorHealth = cmpHealthCritical
 		health.Errors = append(health.Errors, "No active processors")
 		health.Status = healthStatusUnhealthy
 	} else {
-		health.ProcessorHealth = healthStatusHealthy
+		health.ProcessorHealth = cmpHealthHealthy
 	}
 
 	// Check API health based on error rates
@@ -529,20 +539,20 @@ func (mc *MetricsCollector) CheckHealth() HealthStatus {
 		errorRate := float64(mc.metrics.HTTPRequestsFailure) / float64(mc.metrics.HTTPRequestsTotal)
 		switch {
 		case errorRate > errorRateCritical: // 10% error rate
-			health.APIHealth = queueHealthCritical
+			health.APIHealth = cmpHealthCritical
 			health.Errors = append(health.Errors, "High API error rate (>10%)")
 			health.Status = healthStatusUnhealthy
 		case errorRate > errorRateWarning: // 5% error rate
-			health.APIHealth = queueHealthWarning
+			health.APIHealth = cmpHealthWarning
 			health.Warnings = append(health.Warnings, "Elevated API error rate (>5%)")
 			if health.Status == healthStatusHealthy {
 				health.Status = healthStatusDegraded
 			}
 		default:
-			health.APIHealth = healthStatusHealthy
+			health.APIHealth = cmpHealthHealthy
 		}
 	} else {
-		health.APIHealth = "unknown"
+		health.APIHealth = cmpHealthUnknown
 	}
 
 	// Check for recent errors
@@ -583,7 +593,7 @@ func (mc *MetricsCollector) GetHealthStatus() HealthStatus {
 	defer mc.mu.RUnlock()
 
 	if mc.healthStatus == nil {
-		return HealthStatus{Status: "unknown"}
+		return HealthStatus{Status: healthStatusUnknown}
 	}
 	return *mc.healthStatus
 }

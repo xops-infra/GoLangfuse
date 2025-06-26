@@ -3,6 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/bdpiprava/GoLangfuse)](https://goreportcard.com/report/github.com/bdpiprava/GoLangfuse)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Reference](https://pkg.go.dev/badge/github.com/bdpiprava/GoLangfuse.svg)](https://pkg.go.dev/github.com/bdpiprava/GoLangfuse)
+[![Documentation](https://img.shields.io/badge/docs-github%20pages-blue)](https://bdpiprava.github.io/GoLangfuse/)
 
 **Supercharge your Go LLM applications with seamless observability!** GoLangfuse is a production-ready, asynchronous client library for the Langfuse API that provides comprehensive LLM observability with enterprise-grade reliability and minimal performance overhead.
 
@@ -39,6 +40,10 @@ One line and you're ready to go:
 ```bash
 go get github.com/bdpiprava/GoLangfuse
 ```
+
+## 📖 Documentation
+
+For comprehensive documentation, examples, and API reference, visit our **[GitHub Pages Documentation](https://bdpiprava.github.io/GoLangfuse/)**.
 
 ## 🚀 Quick Start
 

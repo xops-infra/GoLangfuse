@@ -31,6 +31,7 @@
 package langfuse
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 )
@@ -159,11 +160,12 @@ func NewHTTPError(statusCode int, message string) *Error {
 	case http.StatusInternalServerError, http.StatusBadGateway, http.StatusServiceUnavailable:
 		baseErr = ErrAPIServerError
 	default:
-		if statusCode >= 400 && statusCode < 500 {
+		switch {
+		case statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError:
 			baseErr = &Error{Code: "CLIENT_ERROR", Message: "client error", Type: ErrorTypeAPI}
-		} else if statusCode >= httpServerErrorStart {
+		case statusCode >= httpServerErrorStart:
 			baseErr = &Error{Code: "SERVER_ERROR", Message: "server error", Type: ErrorTypeAPI}
-		} else {
+		default:
 			baseErr = &Error{Code: "HTTP_ERROR", Message: "HTTP error", Type: ErrorTypeNetwork}
 		}
 	}
@@ -192,7 +194,8 @@ func NewConfigError(field string, reason string) *Error {
 
 // WrapError wraps an existing error with Langfuse context
 func WrapError(err error, baseErr *Error) *Error {
-	if langfuseErr, ok := err.(*Error); ok {
+	var langfuseErr *Error
+	if errors.As(err, &langfuseErr) {
 		return langfuseErr
 	}
 	return baseErr.WithCause(err)
