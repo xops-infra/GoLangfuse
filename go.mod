@@ -1,4 +1,4 @@
-module github.com/bdpiprava/GoLangfuse
+module github.com/xops-infra/GoLangfuse
 
 go 1.24.2
 
