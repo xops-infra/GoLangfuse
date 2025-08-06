@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bdpiprava/GoLangfuse/types"
+	"github.com/xops-infra/GoLangfuse/types"
 )
 
 // This file contains all types required to frame a request but does not require it to be exposed

@@ -10,9 +10,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
 
-	"github.com/bdpiprava/GoLangfuse/config"
-	"github.com/bdpiprava/GoLangfuse/logger"
-	"github.com/bdpiprava/GoLangfuse/types"
+	"github.com/xops-infra/GoLangfuse/config"
+	"github.com/xops-infra/GoLangfuse/logger"
+	"github.com/xops-infra/GoLangfuse/types"
 )
 
 // maxParallelItem is the maximum number of items that can be processed in parallel.

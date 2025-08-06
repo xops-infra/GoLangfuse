@@ -16,9 +16,9 @@ import (
 
 	"github.com/asaskevich/govalidator"
 
-	"github.com/bdpiprava/GoLangfuse/config"
-	"github.com/bdpiprava/GoLangfuse/logger"
-	"github.com/bdpiprava/GoLangfuse/types"
+	"github.com/xops-infra/GoLangfuse/config"
+	"github.com/xops-infra/GoLangfuse/logger"
+	"github.com/xops-infra/GoLangfuse/types"
 )
 
 const (

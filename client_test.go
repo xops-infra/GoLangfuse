@@ -11,10 +11,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
-	langfuse "github.com/bdpiprava/GoLangfuse"
-	"github.com/bdpiprava/GoLangfuse/config"
-	"github.com/bdpiprava/GoLangfuse/mock"
-	"github.com/bdpiprava/GoLangfuse/types"
+	langfuse "github.com/xops-infra/GoLangfuse"
+	"github.com/xops-infra/GoLangfuse/config"
+	"github.com/xops-infra/GoLangfuse/mock"
+	"github.com/xops-infra/GoLangfuse/types"
 )
 
 func Test_Send(t *testing.T) {

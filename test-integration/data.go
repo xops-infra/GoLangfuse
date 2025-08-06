@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bdpiprava/GoLangfuse/types"
+	"github.com/xops-infra/GoLangfuse/types"
 )
 
 // NewTestTraceEvent returns a sample TraceEvent for testing purposes

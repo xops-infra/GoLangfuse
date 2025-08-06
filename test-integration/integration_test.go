@@ -14,9 +14,9 @@ import (
 	"github.com/kelseyhightower/envconfig"
 	"github.com/stretchr/testify/suite"
 
-	langfuse "github.com/bdpiprava/GoLangfuse"
-	"github.com/bdpiprava/GoLangfuse/config"
-	"github.com/bdpiprava/GoLangfuse/types"
+	langfuse "github.com/xops-infra/GoLangfuse"
+	"github.com/xops-infra/GoLangfuse/config"
+	"github.com/xops-infra/GoLangfuse/types"
 	"github.com/bdpiprava/easy-http/pkg/httpx"
 )
 
