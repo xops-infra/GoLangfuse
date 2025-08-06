@@ -25,7 +25,7 @@ const (
 	eventTypeUnknown = "unknown"
 
 	retryBackoffBase     = 2    // Base for exponential backoff calculation
-	compressionThreshold = 1024 // Compress payload if > 1KB
+	// compressionThreshold = 1024 // Compress payload if > 1KB
 	httpClientErrorStart = 400  // HTTP client error status codes start
 )
 
@@ -232,7 +232,7 @@ func (c client) sendEvent(ctx context.Context, request *ingestionRequest) (*inge
 	// Compress payload if it's large enough
 	var body io.Reader
 	var contentEncoding string
-	if len(payload) > compressionThreshold { // Compress if payload > 1KB
+	if len(payload) < 0 { // Compress if payload > 1KB
 		var compressedBuf bytes.Buffer
 		gzWriter := gzip.NewWriter(&compressedBuf)
 		if _, err := gzWriter.Write(payload); err != nil {
