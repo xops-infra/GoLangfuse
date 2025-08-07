@@ -46,6 +46,7 @@ type GenerationEvent struct {
 	Version             string         `json:"version,omitempty" valid:"-"`
 	ModelParameters     map[string]any `json:"modelParameters,omitempty" valid:"-"`
 	Usage               Usage          `json:"usage,omitempty" valid:"-"`
+	UsageDetails        UsageDetail    `json:"usageDetails,omitempty" valid:"-"`
 	PromptVersion       int            `json:"promptVersion,omitempty" valid:"range(0|9999)"`
 	PromptName          string         `json:"promptName,omitempty" valid:"-"`
 }
