@@ -32,7 +32,7 @@ func Test_AddEvent_ShouldCallClientToSendEvents(t *testing.T) {
 
 	resp := &http.Response{Body: io.NopCloser(strings.NewReader("{}"))}
 	mockTransport.ExpectWith("POST", "http://localhost:3000/api/public/ingestion").Return(resp, nil)
-	subject := langfuse.NewWithClient(cfg, httpClient)
+	subject, err := langfuse.NewWithClient(cfg, httpClient)
 
 	subject.AddEvent(context.TODO(), &types.TraceEvent{ID: &eventID, Name: "LLM"})
 

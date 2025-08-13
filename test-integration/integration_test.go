@@ -38,7 +38,7 @@ func (s *LangfuseIntegrationTestSuite) SetupSuite() {
 	s.cfg, err = loadEnv()
 	s.Require().NoError(err, "Failed to load configuration from environment variables")
 
-	s.subject = langfuse.New(s.cfg)
+	s.subject, err = langfuse.New(s.cfg)
 }
 
 func (s *LangfuseIntegrationTestSuite) Test_SendTrace() {

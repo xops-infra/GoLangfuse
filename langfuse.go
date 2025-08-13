@@ -48,10 +48,11 @@ type langfuseService struct {
 }
 
 // New initialise new Langfuse instance for given config with background event processors
-func New(config *config.Langfuse) Langfuse {
+func New(config *config.Langfuse) (Langfuse, error) {
 	if err := config.Validate(); err != nil {
 		logger := logger.FromContext(context.Background())
-		logger.Fatalf("invalid langfuse configuration: %v", err)
+		logger.Errorf("invalid langfuse configuration: %v", err)
+		return nil, err
 	}
 
 	optimizedClient := NewOptimizedHTTPClient(config)
@@ -59,10 +60,11 @@ func New(config *config.Langfuse) Langfuse {
 }
 
 // NewWithClient initialise new Langfuse instance with background event processors
-func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langfuse {
+func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) (Langfuse, error) {
 	if err := config.Validate(); err != nil {
 		logger := logger.FromContext(context.Background())
-		logger.Fatalf("invalid langfuse configuration: %v", err)
+		logger.Errorf("invalid langfuse configuration: %v", err)
+		return nil, err
 	}
 
 	metricsCollector := NewMetricsCollector()
@@ -80,7 +82,7 @@ func NewWithClient(config *config.Langfuse, customHTTPClient *http.Client) Langf
 	metricsCollector.UpdateActiveProcessors(config.NumberOfEventProcessor)
 
 	eventManager.startBatchProcessors(config.NumberOfEventProcessor)
-	return eventManager
+	return eventManager, nil
 }
 
 // AddEvent adds event to the channel and returns the event unique ID, generating one if missing.
