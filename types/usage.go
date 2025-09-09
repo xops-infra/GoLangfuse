@@ -93,6 +93,7 @@ func (b *UsageBuilder) Build() Usage {
 type UsageDetail struct {
 	Input                    int `json:"input,omitempty" valid:"range(0|9999999)"`
 	Output                   int `json:"output,omitempty" valid:"range(0|9999999)"`
+	OutputReasoning          int `json:"output_reasoning,omitempty" valid:"-"`
 	Total                    int `json:"total,omitempty" valid:"range(0|9999999)"`
 	InputCacheRead           int `json:"input_cache_read,omitempty" valid:"range(0|9999999)"`
 	InputCachedTokens        int `json:"input_cached_tokens,omitempty" valid:"range(0|9999999)"`
