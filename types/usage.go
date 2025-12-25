@@ -103,9 +103,10 @@ type UsageDetail struct {
 }
 
 type CostDetail struct {
-	Input                    float64 `json:"input,omitempty" valid:"range(0|999999)"`
-	Output                   float64 `json:"output,omitempty" valid:"range(0|999999)"`
-	Total                    float64 `json:"total,omitempty" valid:"range(0|999999)"`
-	InputCachedTokens        float64 `json:"input_cached_tokens,omitempty" valid:"range(0|999999)"`
-	CacheCreationInputTokens float64 `json:"cache_creation_input_tokens,omitempty" valid:"range(0|999999)"`
+	Input                    float64 `json:"input,omitempty"`
+	Output                   float64 `json:"output,omitempty"`
+	Total                    float64 `json:"total,omitempty"`
+	InputCachedTokens        float64 `json:"input_cached_tokens,omitempty"`
+	CacheCreationInputTokens float64 `json:"cache_creation_input_tokens,omitempty"`
+	OutputReasoning          float64 `json:"output_reasoning,omitempty"`
 }
