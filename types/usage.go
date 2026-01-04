@@ -106,6 +106,7 @@ type CostDetail struct {
 	Input                    float64 `json:"input,omitempty"`
 	Output                   float64 `json:"output,omitempty"`
 	Total                    float64 `json:"total,omitempty"`
+	Image                    float64 `json:"image,omitempty"`
 	InputCachedTokens        float64 `json:"input_cached_tokens,omitempty"`
 	CacheCreationInputTokens float64 `json:"cache_creation_input_tokens,omitempty"`
 	OutputReasoning          float64 `json:"output_reasoning,omitempty"`
